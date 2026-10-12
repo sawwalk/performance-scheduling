@@ -14,7 +14,7 @@ Each step ends with tests passing and a commit.
 - [ ] Copy the real anonymised file into `data/private/`
 
 ## Phase 1: Shared core
-- [ ] `models.py`: data structures
+- [x] `models.py`: data structures, with `test_models.py` and `data-model.md`
 - [ ] `io.py`: load and clean the performer CSV; `test_io.py`
 - [ ] `conflicts.py`: conflict map; `test_conflicts.py`
 - [ ] `io.py`: read schedule CSV (one or several schedule columns)

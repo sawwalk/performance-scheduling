@@ -5,6 +5,7 @@
 | [problem-statement.md](problem-statement.md) | The problem, definitions, rules, assumptions, scope |
 | [design-decisions.md](design-decisions.md) | Decisions made so far, and open questions |
 | [repo-structure.md](repo-structure.md) | Folder layout and what each file is responsible for |
+| [data-model.md](data-model.md) | The containers in `models.py`: what each holds and who creates and uses it |
 | [input-data.md](input-data.md) | Input file formats, requirements, and cleaning applied |
 | [environment.md](environment.md) | Python version, dependencies, setup |
 | [schedule-checker.md](schedule-checker.md) | Purpose, design, usage and output of the schedule checker |

@@ -1,5 +1,5 @@
 git-repo name: performance-scheduling 
-/c/Users/samww/Documents/personal_projects/performance schedule problem
+/c/Users/samww/Documents/personal_projects/performance-scheduling
 
 **Context:**  
 A show consists of a number of performances, each identified by a dance style (e.g. “Bollywood (Open)”, “Kpop Boys (Intermediate)”, “Hip Hop (Foundations)”). Performers can enter any performance and many enter several. The organiser must choose the running order of the performances.  
@@ -57,7 +57,12 @@ Things to edit in final version of docs:
 README.md: 
 - remove/modify typical scale section
 - Out of scope (for now) section
+- models.py line 30: "The loader also rejects any performance
+ called "break" (in any capitalisation) so the two can never be confused in a file."
 
 Design decisions:
 - add how the schedule finder and checker handles a performance with no performers (state a warning and the effect on the output)
 - add how the schedule checker handles a performer that is performing in a performance that does not exist in the input schedule (state a warning and the effect on the output)
+
+**Things to learn from this project:**
+- what pytest is and how it connects to pyproject.toml and tests folder. Is the test configuration specified in pyproject.toml?

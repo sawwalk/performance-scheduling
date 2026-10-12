@@ -1,20 +1,32 @@
-git-repo name: performance-scheduling to ensure spacing
+# performance-scheduling
 
-**Context:**  
-A show consists of a number of performances, each identified by a dance style (e.g. “Bollywood (Open)”, “Kpop Boys (Intermediate)”, “Hip Hop (Foundations)”). Performers can enter any performance and many enter several. The organiser must choose the running order of the performances.  
-The show may also contain breaks or guest performances. All guest performers only perform once.
+Tools for organising the running order of a dance show so that no performer appears too soon after a previous performance.
 
-**The problem:**  
-Order the performances so that every performer has at least one break between each of their performances. In other words, no performer appears in two consecutive slots.
-We may increase the minimum gap to see if it is possible for all performers to have more than 1 break between their performances.
+**Status:** early development (planning and setup). Nothing runs yet.
 
-**Objective:**
+## What it does
 
-- **Input:**  
-Format: csv  
-Columns: [Full Name, Performance]  
-Granularity: One row per performer per performance  
-example:  
+A show has many performances (e.g. "Bollywood (Open)"), and many performers take part in several of them. Two tools work from a CSV of who is in what:
 
-**Output:**
+- **Schedule checker:** checks a proposed running order (breaks allowed) and reports exactly which performers are not given enough rest.
+- **Schedule finder:** finds valid running orders, lets the organiser pin performances and breaks to chosen slots, and gives more schedules on demand.
 
+Full details are in [docs/](docs/README.md), starting with the [problem statement](docs/problem-statement.md).
+
+## Setup (one time)
+
+Requires Python 3.11 or newer.
+
+    python -m venv .venv
+    .venv\Scripts\activate            (Windows)   or   source .venv/bin/activate   (macOS/Linux)
+    pip install -e ".[dev]"
+
+In VS Code, choose the `.venv` interpreter via *Python: Select Interpreter*.
+
+## Data and privacy
+
+Performer names are personal data. Real files go in `data/private/`, which git ignores. Only synthetic files in `data/examples/` are committed. See [docs/test-datasets.md](docs/test-datasets.md).
+
+## Documentation
+
+See [docs/README.md](docs/README.md) for the index.

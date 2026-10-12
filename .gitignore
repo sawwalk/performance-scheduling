@@ -1,0 +1,42 @@
+# ---------- Python ----------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# ---------- Virtual environments ----------
+.venv/
+venv/
+env/
+
+# ---------- Test, lint and coverage caches ----------
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# ---------- Jupyter ----------
+.ipynb_checkpoints/
+
+# ---------- Editors and OS ----------
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# ---------- Secrets and local config ----------
+.env
+.streamlit/secrets.toml
+
+# ---------- Real performer data (personal data: never commit) ----------
+# Everything inside data/ is ignored EXCEPT the synthetic examples.
+data/*
+!data/examples/
+
+# ---------- Generated output ----------
+output/
+outputs/
+*.log

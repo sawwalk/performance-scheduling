@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "performance-scheduling"
+version = "0.1.0"
+description = "Check and find running orders for a dance show so performers get enough rest between performances."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []          # the core uses only the Python standard library
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff", "ipykernel", "jupyter", "pandas", "nbstripout"]
+solver-experiments = ["ortools"]     # only needed for the CP-SAT experiment (decision Q2)
+ui = ["streamlit", "pandas"]         # later, for the simple interface
+
+# Command-line entry points: switched on when cli.py exists (Phase 2 and 3).
+# [project.scripts]
+# schedule-checker = "performance_scheduling.cli:checker_main"
+# schedule-finder = "performance_scheduling.cli:finder_main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]

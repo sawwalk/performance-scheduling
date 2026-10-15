@@ -10,6 +10,7 @@ from performance_scheduling.models import (
     InputError,
     Issue,
     PerformerData,
+    PerformerLoad,
     Schedule,
     Severity,
 )
@@ -82,3 +83,9 @@ def test_frozen_containers_cannot_be_changed():
     schedule = Schedule(name="schedule_1", slots=("jazz",))
     with pytest.raises(FrozenInstanceError):
         schedule.name = "other"  # type: ignore[misc]
+
+
+def test_performer_load_carries_the_data_and_counts():
+    load = PerformerLoad(data=make_performer_data(), warnings=(), rows_read=4, rows_used=4)
+    assert load.data.performance_keys == ("ballet", "jazz", "tap")
+    assert load.warnings == ()

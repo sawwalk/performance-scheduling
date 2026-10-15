@@ -15,9 +15,9 @@ dev = ["pytest>=8", "ruff", "ipykernel", "jupyter", "pandas", "nbstripout"]
 solver-experiments = ["ortools"]     # only needed for the CP-SAT experiment (decision Q2)
 ui = ["streamlit", "pandas"]         # later, for the simple interface
 
-# Command-line entry points: switched on when cli.py exists (Phase 2 and 3).
-# [project.scripts]
-# schedule-checker = "performance_scheduling.cli:checker_main"
+# Command-line entry points. The finder is switched on when it exists (Phase 3).
+[project.scripts]
+schedule-checker = "performance_scheduling.cli:checker_main"
 # schedule-finder = "performance_scheduling.cli:finder_main"
 
 [tool.setuptools.packages.find]

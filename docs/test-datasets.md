@@ -23,12 +23,14 @@ Column headers vary on purpose: most files use `full name,style` (like the real 
 | `dense_overlap.csv` | 20 performances, 40 performers in 3 to 5 each | Many conflicts: feasible at k=1, tight beyond | Rough: k=1 found with 0 breaks; k=2 impossible with 0 breaks; k=2 found with 4 breaks. |
 | `impossible_dense.csv` | 20 performances, 70 performers in 4 to 6 each | Infeasible in practice; tests diagnostics and the stopped/exhausted distinction | Rough: k=1 impossible with 0 or 2 breaks; with 4 breaks the quick search found none after a long search; k=2 impossible with 0, 2 or 4 breaks. |
 
+The loader is tested against every performer file here (`tests/test_io.py`): the counts of performers, performances and rows below are checked, and all files except `messy_input.csv` must load with no warnings.
+
 ### What `messy_input.csv` should produce after cleaning
 
 - 13 rows read; 2 dropped as blank (one empty id, one empty performance); 1 duplicate merged (`Person 0001` twice, one with a trailing space) leaves **10 distinct rows**
 - **7 performers** and **5 performances**
 - Case and spacing are ignored when matching: `  person 0002` with `bollywood (open)` is the same performer and performance as `Person 0002` and `Bollywood (Open)`; `Jazz  (Open)` (double space) equals `Jazz (Open)`
-- Warnings expected: blank rows dropped, duplicate removed, near-duplicate ids (`Jon Smith` and `John Smith`), near-duplicate performance names (`Tap (Foundations)` and `Tap (Foundation)`)
+- 5 warnings: the duplicate row (row 3), the two rows with a missing value (rows 10 and 11), near-duplicate ids (`Jon Smith` and `John Smith`), and near-duplicate performance names (`Tap (Foundations)` and `Tap (Foundation)`). `Person 0001` to `Person 0006` are not flagged against each other.
 
 ## Schedule files (for the checker), all for `tiny_feasible.csv`
 

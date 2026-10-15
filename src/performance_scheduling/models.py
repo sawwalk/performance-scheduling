@@ -22,7 +22,7 @@ part is using.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 
 # The text that marks a break in a schedule. Performance keys are always lower case,
@@ -92,6 +92,20 @@ class PerformerData:
 
 
 @dataclass(frozen=True)
+class PerformerLoad:
+    """What the performer loader returns: the cleaned data plus how loading went.
+
+    Errors never appear here: they stop loading by raising InputError. Only
+    warnings are carried, because the data is usable.
+    """
+
+    data: PerformerData
+    warnings: tuple[Issue, ...]
+    rows_read: int  # data rows in the file, not counting the header or completely blank rows
+    rows_used: int  # distinct performer-and-performance pairs kept after cleaning
+
+
+@dataclass(frozen=True)
 class ConflictMap:
     """Which performances clash, and which performers cause each clash.
 
@@ -123,6 +137,11 @@ class Schedule:
 
     name: str                # e.g. "schedule_4"
     slots: tuple[str, ...]   # each item is a performance key, or BREAK
+    # Performance key -> the spelling used in the file the schedule came from. Lets the
+    # checker name a performance that is not in the performer data (a typo, say) the way
+    # the organiser wrote it. Left empty for schedules the program creates. It is ignored
+    # when two schedules are compared.
+    display_names: Mapping[str, str] = field(default_factory=dict, compare=False)
 
     @property
     def num_slots(self) -> int:
@@ -143,3 +162,58 @@ class Schedule:
             for position, slot in enumerate(self.slots, start=1)
             if slot != BREAK
         }
+
+
+@dataclass(frozen=True)
+class ScheduleLoad:
+    """What the schedule reader returns: every schedule in the file, plus any warnings.
+
+    The reader checks the *file* (columns, positions) but not the *contents*: unknown,
+    missing or repeated performances are loaded as they are, and the schedule checker
+    reports them. Errors in the file itself stop reading by raising InputError.
+    """
+
+    schedules: tuple[Schedule, ...]
+    warnings: tuple[Issue, ...]
+
+
+@dataclass(frozen=True)
+class Violation:
+    """One broken spacing rule: a performer who has too little rest between two performances.
+
+    Performers and performances are keys; look up display names in PerformerData.
+    The two performances are neighbours in that performer's own running order.
+    """
+
+    performer: str
+    performance_a: str   # the earlier of the two
+    position_a: int
+    performance_b: str   # the later of the two
+    position_b: int
+    slots_between: int   # slots strictly between the two (breaks count as slots)
+    required: int        # the gap k that was asked for
+
+
+@dataclass(frozen=True)
+class ScheduleCheck:
+    """The result of checking one schedule.
+
+    A schedule is valid when it has no structural problems and no violations. If there
+    are structural problems (a missing, unknown or repeated performance) the spacing
+    check is not run, so `violations` is empty and `smallest_gap` is None.
+    """
+
+    schedule_name: str
+    gap_required: int                # the k that was checked
+    num_slots: int
+    num_breaks: int
+    problems: tuple[Issue, ...]      # structural problems; any makes the schedule invalid
+    violations: tuple[Violation, ...]
+    # The fewest slots between two performances of the same performer anywhere in the
+    # schedule. The schedule satisfies every gap up to this number. None if the spacing
+    # was not checked, or if nobody is in more than one performance (any gap is satisfied).
+    smallest_gap: int | None
+
+    @property
+    def valid(self) -> bool:
+        return not self.problems and not self.violations

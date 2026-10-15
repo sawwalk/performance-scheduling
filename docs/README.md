@@ -1,27 +1,42 @@
-# Documentation index
+# performance-scheduling
 
-| Document | What it covers |
-|---|---|
-| [problem-statement.md](problem-statement.md) | The problem, definitions, rules, assumptions, scope |
-| [design-decisions.md](design-decisions.md) | Decisions made so far, and open questions |
-| [repo-structure.md](repo-structure.md) | Folder layout and what each file is responsible for |
-| [data-model.md](data-model.md) | The containers in `models.py`: what each holds and who creates and uses it |
-| [input-data.md](input-data.md) | Input file formats, requirements, and cleaning applied |
-| [environment.md](environment.md) | Python version, dependencies, setup |
-| [schedule-checker.md](schedule-checker.md) | Purpose, design, usage and output of the schedule checker |
-| [schedule-finder.md](schedule-finder.md) | Purpose, design, usage and output of the schedule finder |
-| [search-approaches.md](search-approaches.md) | CP-SAT versus custom backtracking, how each works, where each fits, and the experiment to choose |
-| [test-datasets.md](test-datasets.md) | The practice datasets in `data/examples/` and what each one tests |
-| [development-roadmap.md](development-roadmap.md) | The order in which we build things |
+Tools for organising the running order of a dance show so that no performer appears too soon after a previous performance.
 
-## Planned (not yet written)
+**Status:** early development. The schedule checker works; the schedule finder is not built yet.
 
-- `testing-strategy.md`: what we test and how
-- `error-messages.md`: catalogue of every error/warning the tools can give
-- `ui-design.md`: the simple interface for non-technical organisers
-- `data-privacy.md`: handling of performer names and emails
-- `user-guide.md`: step-by-step guide for organisers (written once the UI exists)
-- `glossary.md`: if the vocabulary outgrows the problem statement
+## What it does
 
-Status of every document: **DRAFT**. Documents describe the *intended* design; where
-the code and a document disagree, fix whichever is wrong and note it in `design-decisions.md`.
+A show has many performances (e.g. "Bollywood (Open)"), and many performers take part in several of them. Two tools work from a CSV of who is in what:
+
+- **Schedule checker:** checks a proposed running order (breaks allowed) and reports exactly which performers are not given enough rest.
+- **Schedule finder:** finds valid running orders, lets the organiser pin performances and breaks to chosen slots, and gives more schedules on demand.
+
+Full details are in [docs/](docs/README.md), starting with the [problem statement](docs/problem-statement.md).
+
+## Setup (one time)
+
+Requires Python 3.11 or newer.
+
+    python -m venv .venv
+    .venv\Scripts\activate            (Windows)   or   source .venv/bin/activate   (macOS/Linux)
+    pip install -e ".[dev]"
+
+In VS Code, choose the `.venv` interpreter via *Python: Select Interpreter*.
+
+## Using the schedule checker
+
+    schedule-checker --performers data/private/performers.csv --schedule data/private/order.csv --gap 1
+
+Try it on the examples:
+
+    schedule-checker --performers data/examples/tiny_feasible.csv --schedule data/examples/tiny_feasible_schedule_invalid.csv
+
+See [docs/schedule-checker.md](docs/schedule-checker.md) for all options and the output. After editing `pyproject.toml`, run `pip install -e ".[dev]"` again so the command is registered.
+
+## Data and privacy
+
+Performer names are personal data. Real files go in `data/private/`, which git ignores. Only synthetic files in `data/examples/` are committed. See [docs/test-datasets.md](docs/test-datasets.md).
+
+## Documentation
+
+See [docs/README.md](docs/README.md) for the index.

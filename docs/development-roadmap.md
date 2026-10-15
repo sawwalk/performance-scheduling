@@ -15,14 +15,14 @@ Each step ends with tests passing and a commit.
 
 ## Phase 1: Shared core
 - [x] `models.py`: data structures, with `test_models.py` and `data-model.md`
-- [ ] `io.py`: load and clean the performer CSV; `test_io.py`
-- [ ] `conflicts.py`: conflict map; `test_conflicts.py`
-- [ ] `io.py`: read schedule CSV (one or several schedule columns)
-- [ ] `selection.py`: parse pick syntax (`1-3,7`, `all`); `test_selection.py`
+- [x] `io.py`: load and clean the performer CSV; `test_io.py`
+- [x] `conflicts.py`: conflict map; `test_conflicts.py`
+- [x] `io.py`: read schedule CSV (one or several schedule columns)
+- [x] `selection.py`: parse pick syntax (`1-3,7`, `all`); `test_selection.py`
 
 ## Phase 2: Schedule checker
-- [ ] `validator.py`: structural checks, then spacing checks; `test_validator.py`
-- [ ] `cli.py`: checker command
+- [x] `validator.py`: structural checks, then spacing checks; `test_validator.py`
+- [x] `cli.py` and `report.py`: checker command; `test_cli.py`, `test_report.py`
 - [ ] Try it on the example data in a notebook
 
 ## Phase 3: Schedule finder (basic)

@@ -35,9 +35,11 @@ Real files may use other headers. The anonymised show file uses `full name,style
 
 ### Requirements
 
-- CSV, with a header row, UTF-8 (a byte-order mark from Excel is accepted).
-- Exactly the two columns above are used; extra columns are ignored with a warning.
-- Column names are configurable. If not specified and the file has exactly two columns, the first is the id and the second is the performance.
+- CSV, with a header row, UTF-8 (a byte-order mark from Excel is accepted). If the file is not UTF-8 the tool says so and suggests "CSV UTF-8" in Excel's Save As.
+- The separator can be a comma, semicolon or tab; it is detected from the header row.
+- Exactly the two columns above are used. Empty trailing columns (which Excel sometimes adds) are ignored.
+- If the file has exactly two columns, the first is the id and the second is the performance, whatever they are called.
+- Otherwise both column names must be given (case and extra spaces do not matter). Any other columns are ignored, with a warning.
 - The same id must be used every time for the same person.
 - A performance cannot be named `BREAK` (any capitalisation); that word is reserved.
 
@@ -45,23 +47,31 @@ Real files may use other headers. The anonymised show file uses `full name,style
 
 | Step | Detail |
 |---|---|
+| Standard form | Text is converted to a standard Unicode form, so look-alikes (a non-breaking space copied from a web page, an accented letter typed two ways) match. |
 | Whitespace | Leading/trailing spaces removed; runs of internal spaces collapsed to one. |
 | Case | Matching ignores case (`Hip Hop` = `hip hop`). The first spelling seen is kept for display. |
-| Blank rows | Rows with an empty id or performance are dropped and reported. |
+| Blank rows | Completely blank rows (often at the end of a file) are skipped quietly. Rows with an empty id or performance are dropped with a warning. |
 | Duplicates | Repeated (id, performance) pairs after cleaning are merged, with a warning. |
 
 ### Errors (processing stops)
 
-- Missing file, missing/ambiguous columns, or no usable rows
+- Missing or unreadable file, empty file, no usable rows
+- Missing, repeated or ambiguous columns
 - A performance named `BREAK`
+
+All errors found are reported together so they can be fixed in one go.
 
 ### Warnings (processing continues)
 
-- Duplicate rows removed
-- Blank rows dropped
-- **Near-duplicate ids** (e.g. `Jon Smith` and `John Smith`): a typo would silently remove constraints, so these are flagged for the organiser to confirm
-- Near-duplicate performance names (e.g. `Hip Hop (Found.)` and `Hip Hop (Foundations)`)
-- Performers in only one performance (informational; they create no constraints)
+- Duplicate rows removed (row number given)
+- Rows dropped for a missing id or performance (row number given)
+- Extra columns ignored
+- **Near-duplicate ids** (e.g. `Jon Smith` and `John Smith`): a typo would silently remove constraints, so these are flagged for the organiser to confirm. Names that differ only in digits (`Person 0001` and `Person 0002`) are not flagged, because numbered ids are normally different people.
+- **Near-duplicate performance names** (e.g. `Tap (Foundations)` and `Tap (Foundation)`). Genuinely different performances such as `Kpop Boys (Intermediate)` and `Kpop Girls (Intermediate)` are not flagged.
+
+Similarity is scored from 0 to 1; the thresholds (0.90 for ids, 0.92 for performance names) are constants at the top of `io.py` and can be tuned.
+
+Performers in only one performance create no constraints. That is normal (most performers), so there is no warning for it.
 
 ### Derived data
 
@@ -93,11 +103,12 @@ position,schedule_1,schedule_2,schedule_3
 ```
 
 Rules:
-- Positions must be 1..N with no gaps or repeats (if the position column is missing, row order is used).
-- Every schedule column must have a value in every row.
-- Performance names are matched using the same cleaning as above.
-- `BREAK` (any capitalisation) marks a break; blank items are treated as breaks with a warning.
-- In every schedule column, each performance in the performer CSV must appear exactly once; unknown names are errors.
+- The `position` column (any capitalisation, any place in the header) gives each row's slot number. Rows may be in any order; they are sorted by position. Positions must be exactly 1 to N with no gaps, repeats or non-numbers; otherwise the file is rejected with a message naming the rows. If there is no `position` column, every column is a schedule and row order is the running order.
+- Performance names are matched using the same cleaning as above, so `bollywood (open)` in a schedule matches `Bollywood (Open)` in the performer file.
+- `BREAK` (any capitalisation) marks a break. An empty cell is treated as a break, with a warning naming the row and schedule.
+- Completely blank rows and empty trailing columns are ignored. Cells beyond the header's columns are ignored with a warning.
+- Schedule names (the headers) must be unique.
+- **Reading the file does not judge its contents.** A performance that is missing, repeated, or not in the performer file is loaded as written; the schedule checker reports it (decision D22).
 - The checker checks every schedule column and reports each one separately.
 
 ## 3. Fixed-positions CSV (finder input, optional)

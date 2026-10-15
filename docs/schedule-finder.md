@@ -88,6 +88,10 @@ Rules:
 - The limit (default 100, change with `--limit`) caps the number written. With `all`, the first 100 are written and the tool says whether more exist ("showing 100 of at least 100; pin more items or pick another range"). An explicit pick longer than the limit is refused with a message rather than silently shortened.
 - If fewer schedules exist than requested, those that exist are written and the missing numbers are listed.
 - The same syntax is used by the UI, as a text box plus a "Select all" button.
+- Spaces do not matter (`1-3, 7` is fine) and long dashes copied from a word processor are read as hyphens.
+- `all` must be used on its own.
+- Mistakes get a plain message that quotes the part that is wrong and shows an example: letters, empty items (`1,,3`), `0`, a backwards range (`4-1`, with the fix suggested), or a number above the highest available.
+- Under the hood the choice is stored as joined ranges, so a typo like `1-1000000000000` is refused immediately and never builds a huge list.
 
 ## Usage (planned; the exact command names may change)
 

@@ -2,7 +2,7 @@
 
 Tools for organising the running order of a dance show so that no performer appears too soon after a previous performance.
 
-**Status:** early development (planning and setup). Nothing runs yet.
+**Status:** early development. The schedule checker works; the schedule finder is not built yet.
 
 ## What it does
 
@@ -22,6 +22,16 @@ Requires Python 3.11 or newer.
     pip install -e ".[dev]"
 
 In VS Code, choose the `.venv` interpreter via *Python: Select Interpreter*.
+
+## Using the schedule checker
+
+    schedule-checker --performers data/private/performers.csv --schedule data/private/order.csv --gap 1
+
+Try it on the examples:
+
+    schedule-checker --performers data/examples/tiny_feasible.csv --schedule data/examples/tiny_feasible_schedule_invalid.csv
+
+See [docs/schedule-checker.md](docs/schedule-checker.md) for all options and the output. After editing `pyproject.toml`, run `pip install -e ".[dev]"` again so the command is registered.
 
 ## Data and privacy
 

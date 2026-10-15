@@ -69,14 +69,34 @@ On screen, in this order:
 2. **Warnings about the performer file** (including possible typos in names), in full, before any results. These are the organiser's only prompt to fix the data, so they are never hidden. More than 20 are shortened with "... and N more"
 3. Warnings about the schedule file
 4. With more than one schedule, an **overview table**: schedule, result, slots, breaks, number of problems, tightest gap
-5. A write-up per schedule: `VALID` or `INVALID`, slot and break counts, then either the structural problems (spacing not checked) or each violation as a sentence, for example `Person 0006 is in Bollywood (Open) (slot 3) and Tap (Foundations) (slot 4): 0 slots between, but at least 1 needed.` and the tightest spacing
+5. A write-up per schedule: `VALID` or `INVALID`, slot and break counts, then either a section of structural problems (spacing not checked) or the spacing problems in **two lists with `=====` section breaks**: first the conflicting pairs of performances, then, for each pair, who is affected. The tightest spacing follows. For example:
+
+```
+schedule_2: INVALID
+  20 slots (2 breaks).
+
+  ===== CONFLICTING PERFORMANCE PAIRS (2) =====
+   1. Contemporary (Open) (slot 2) and Tap (Foundations) (slot 4): 1 slot between, at least 2 needed (1 performer affected).
+   2. Hip Hop (Foundations) (slot 3) and Jazz (Open) (slot 5): 1 slot between, at least 2 needed (1 performer affected).
+
+  ===== WHO IS AFFECTED (2 performers) =====
+   1. Contemporary (Open) and Tap (Foundations)
+        - Person 0005
+   2. Hip Hop (Foundations) and Jazz (Open)
+        - Person 0002
+  ===== END OF SPACING PROBLEMS =====
+
+  Tightest spacing: 1 slot between a performer's performances.
+```
 6. With more than one schedule, a closing line such as `1 of 12 schedules are invalid.`
 
 With more than 10 schedules, valid ones appear only in the overview table; full write-ups are kept for the others.
 
 Names are the display names from the performer file. Characters a Windows console cannot show appear as `?` instead of stopping the program.
 
-Optional CSV report (`--report-csv`), one row per violation, names as in the performer file, saved with a byte-order mark so Excel shows accents correctly. A valid run writes just the header row:
+**Command line and UI.** The terminal text above is the command line's layout. The UI shows the same facts with the same sentences, but lays them out its own way (for example a table of conflicting pairs with expandable rows for the performers affected). Both use the same grouping (`group_violations` in `report.py`), so they cannot disagree.
+
+Optional CSV report (`--report-csv`), one row per violation (one per performer, not grouped, so it can be filtered in Excel), names as in the performer file, saved with a byte-order mark so Excel shows accents correctly. A valid run writes just the header row:
 
     schedule,performer,performance_a,position_a,performance_b,position_b,slots_between,required
 

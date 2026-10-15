@@ -44,7 +44,11 @@ def test_invalid_schedule_exits_one_and_explains_why(capsys):
     code, out, _ = run(capsys, "--performers", PERFORMERS, "--schedule", schedule_file("tiny_feasible_schedule_invalid.csv"))
     assert code == EXIT_INVALID == 1
     assert "schedule_1: INVALID" in out
-    assert "Person 0006 is in Bollywood (Open) (slot 3) and Tap (Foundations) (slot 4)" in out
+    assert "Bollywood (Open) (slot 3) and Tap (Foundations) (slot 4): 0 slots between, at least 1 needed" in out
+    assert "===== CONFLICTING PERFORMANCE PAIRS (1) =====" in out
+    assert "===== WHO IS AFFECTED (1 performer) =====" in out
+    assert "        - Person 0006" in out
+    assert out.index("CONFLICTING PERFORMANCE PAIRS") < out.index("WHO IS AFFECTED")
 
 
 def test_gap_option_changes_the_result(capsys):
@@ -64,7 +68,8 @@ def test_gap_zero_checks_only_the_structure(capsys):
 def test_broken_schedule_reports_the_structural_problems(capsys):
     code, out, _ = run(capsys, "--performers", PERFORMERS, "--schedule", schedule_file("tiny_feasible_schedule_broken.csv"))
     assert code == EXIT_INVALID
-    assert "spacing was not checked" in out
+    assert "===== PROBLEMS WITH THE SCHEDULE ITSELF (4) =====" in out
+    assert "Spacing was not checked." in out
     assert '"Salsa (Open)" is in the schedule (position 1)' in out
 
 
@@ -186,7 +191,8 @@ def test_named_columns_in_the_performer_file(capsys, tmp_path):
         "--id-column", "name", "--performance-column", "style",
     )
     assert code == EXIT_INVALID
-    assert "Sam is in Jazz (slot 1) and Tap (slot 2)" in out
+    assert "Jazz (slot 1) and Tap (slot 2): 0 slots between" in out
+    assert "        - Sam" in out
 
 
 @pytest.mark.parametrize("bad_gap", ["-1", "abc", "1.5"])

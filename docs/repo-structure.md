@@ -47,7 +47,7 @@ to exist before it has content.
 | `report.py` | Turns check results into plain-language text and CSV text: the sentence for each violation, the table for several schedules, the report file contents. Also groups violations by pair of performances (`group_violations`) so both interfaces list the clashing pairs first and then who is affected. Returns text and data, never prints. It sits in the shared layer for the same reason as `selection.py`: the command line and the UI must show identical wording and must not import from each other. (Added 2026-10-15; can be folded into `cli.py` if you prefer.) | No |
 | `cli.py` | Command-line entry points. Reads arguments, calls `io`, then `validator` or `solver`, prints results using `report`. No scheduling logic. | Via `io` |
 
-`solver.py` hides the search engine behind one function. If the engine code grows, it may be split into per-engine files; see `search-approaches.md`.
+`solver.py` hides the search engine (OR-Tools CP-SAT, decision D29) behind one function; see `search-approaches.md`.
 
 ## Dependency rule
 

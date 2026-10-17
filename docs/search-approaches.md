@@ -1,154 +1,107 @@
 # Search approaches for the schedule finder (decision Q2)
 
-**Status:** DRAFT. The choice is not final: it is settled by the notebook experiment described below.
+**Status:** SETTLED on 2026-10-17 (D29): the schedule finder uses **OR-Tools CP-SAT**. This file is the record of why. The custom backtracking option is described for history and is not being built.
 
 The finder has to answer: "list valid running orders, one at a time, in a repeatable
-order, honouring pinned positions". Two ways to build the search engine are on the table.
+order, honouring pinned positions". Two ways to build the search engine were compared.
 
-## 1. Option A: OR-Tools CP-SAT
+## 1. The two options
 
-### What it is
+**Option A: OR-Tools CP-SAT.** The constraint-programming solver in Google's OR-Tools library. You describe the problem as variables and constraints, and the solver searches for assignments that satisfy them. It is built on SAT-solving techniques (it learns from dead ends so it does not repeat them).
 
-CP-SAT is the constraint-programming solver in Google's OR-Tools library. You describe the
-problem as variables and constraints, and the solver searches for assignments that satisfy
-them. It is built on SAT-solving techniques (it learns from dead ends so it does not repeat them).
+**Option B: custom backtracking.** Build the running order slot by slot from left to right, trying candidates in a fixed order and undoing a choice when it leads to a dead end. Because the order is fixed, the list of schedules is always the same and in dictionary order, and "next schedule" is natural.
 
-### How our problem would be modelled
+| | CP-SAT | Backtracking |
+|---|---|---|
+| Strengths | Strong at proving "no schedule exists". Can name the pins that block a schedule. Easy to add constraints later. | Fixed dictionary order. "Next" is natural. No heavy dependency. Easy to explain. |
+| Weaknesses | Order of results is the solver's. Large dependency. The search is a black box. | Worst case is exponential. We write and test the pruning ourselves. Cannot prove "none exists" quickly on hard cases. |
 
-- One integer variable per **performance**, holding its slot number (1 to N, where N = performances + breaks).
-- All performance variables must differ (one performance per slot). Slots no performance takes are the breaks, so breaks are automatically interchangeable (decision D11).
-- For each conflicting pair of performances, their slot numbers must differ by at least k + 1.
-- A pinned performance fixes its variable. A pinned break forbids every performance from that slot.
+## 2. The experiment
 
-### What the sources confirm
+`notebooks/search_experiment.ipynb`, run on 2026-10-17. Backtracking was stopped after 300,000 steps; CP-SAT was given 20 seconds, one worker and seed 1. "Found" means a schedule was produced, "exhausted" means the engine proved none exists, "stopped" means it gave up at the limit. (Notebook outputs are stripped before committing, so the results are kept here.)
 
-- The official CP-SAT page says to find all solutions, you implement a solution printer (a callback) and set `enumerate_all_solutions` to true in the solver configuration. [CP-SAT solver, OR-Tools docs](https://developers.google.com/optimization/cp/cp_solver)
-- The solver's parameter file documents `random_seed` (changes the solver's choices), and `num_workers` (0 means use all cores, 1 means no parallelism). It also has an experimental `interleave_search` option described as deterministic. [sat_parameters.proto](https://github.com/google/or-tools/blob/stable/ortools/sat/sat_parameters.proto)
-- A user-reported OR-Tools issue shows enumeration gets slow quickly because the number of solutions grows exponentially. This is a general warning, not a verdict on our problem. [or-tools issue #4220](https://github.com/google/or-tools/issues/4220)
+**Correctness.** On the three tiny shows (9 combinations of gap and breaks), brute force, backtracking and CP-SAT gave identical lists. The counts are the ones in `test-datasets.md`.
+
+**The real show** (19 performances, 126 performers, largest group of performances that all clash: 6):
+
+| k | breaks | Backtracking | CP-SAT |
+|---|---|---|---|
+| 1 | 0 | found, 0.00 s | found, 0.10 s |
+| 2 | 0 | **stopped**, 4.19 s | found, 0.10 s |
+| 2 | 2 | found, 0.45 s | found, 0.09 s |
+| 3 | 0 | exhausted, 0.00 s | exhausted, 0.02 s |
+| 3 | 2 | **stopped**, 5.31 s | **exhausted**, 0.12 s |
+| 3 | 4 | **stopped**, 4.95 s | found, 0.12 s |
+
+So on the real show k = 2 is possible with no breaks, and k = 3 needs 4 breaks (2 is proved impossible). Only CP-SAT could say so.
+
+**Synthetic shows (20 performances, 15 cases).** CP-SAT gave a definite answer to all 15, the slowest taking 1.73 s. Backtracking stopped on 3: `typical_20_performances` at k=3 with 4 breaks, and `one_busy_performer` at k=1 with 0 breaks and at k=2 with 5 breaks. CP-SAT proved all three impossible. (The `one_busy_performer` k=1, 0 breaks result is new: `test-datasets.md` said "not decided".)
+
+**Many schedules** (`typical_20_performances`, k=1, 0 breaks):
+
+| Schedules wanted | Backtracking | CP-SAT |
+|---|---|---|
+| 1 | 0.00 s | 0.23 s |
+| 100 | 0.01 s | 0.23 s |
+| 1,000 | 0.35 s | 0.89 s |
+
+On the real show, 100 schedules took 0.12 s with CP-SAT. Run twice, both engines gave the same list. Backtracking's list was in dictionary order and CP-SAT's was not. Neighbouring schedules differed in 3.9 slots on average for backtracking and 2.8 for CP-SAT. The two lists of 100 had no schedule in common.
+
+**Pins.** Easy pins (an opening act, a closing act and a break) and hard pins at k=1 were solved by both. Hard pins at k=2 with 4 breaks: backtracking stopped after 5.66 s, CP-SAT found a schedule in 0.54 s. Contradicting pins were reported as impossible by both instantly. CP-SAT, given each pin as an assumption, correctly named the two clashing pins out of four.
+
+## 3. Why CP-SAT
+
+- It gave a definite answer, found or proved impossible, to every case in the experiment, and fast. These are the answers an organiser needs: "here is a schedule", "none exists, and here is why".
+- It can name the pins that cannot all hold together (D34).
+- Backtracking cannot be trusted at k of 2 or more unless its fault (section 5) is fixed, and even then it gave up on hard cases.
+
+What we give up: dictionary order and cheap "next schedule". "Show more" means re-running and skipping (D33), and schedule numbers depend on the OR-Tools version (D32). These were judged acceptable because runs are fast. The dependency is larger, so it is optional (D35): the schedule checker does not need it.
+
+## 4. How CP-SAT is used
+
+The behaviour the organiser sees is in `schedule-finder.md`. The engine side:
+
+- **Model:** one slot variable per performance, all different; for each conflicting pair, a choice of "A first" or "B first" with the spacing rule on each side; pins fix a performance or forbid a slot for every performance. Breaks are the unused slots.
+- **Listing:** the solver option that enumerates all solutions, with a callback that collects schedules and stops the search after the highest number wanted. One worker and a fixed seed, so the list is repeatable.
+- **Statuses:** a finished search with no schedule left is *exhausted*; reaching the wanted number is *found*; hitting the time limit is *stopped*. If fewer schedules exist than wanted, the search finishes and the answer is *exhausted*. (The notebook labelled that case "found". The finder must not.)
+- **Counting:** the same search with a cap and without storing schedules ("at least 10,000").
+- **Infeasibility:** a separate model where each pin is switched on by an assumption. If it is infeasible, the solver returns a subset of assumptions that is enough to cause that. This is not used for enumeration.
+- **Seed:** see Q14. Only seed 1 was used in the experiment.
+
+Sources (carried over from the earlier version of this file; the last was never opened):
+
+- The official CP-SAT page says to find all solutions you implement a solution callback and set `enumerate_all_solutions` to true. [CP-SAT solver, OR-Tools docs](https://developers.google.com/optimization/cp/cp_solver)
+- The parameter file documents `random_seed` and `num_workers` (1 means no parallelism). [sat_parameters.proto](https://github.com/google/or-tools/blob/stable/ortools/sat/sat_parameters.proto)
+- A user-reported issue shows enumeration slows quickly because the number of solutions grows exponentially. [or-tools issue #4220](https://github.com/google/or-tools/issues/4220)
 - Python API reference: [cp_model](https://developers.google.com/optimization/reference/python/sat/python/cp_model)
-- A widely used community guide, which I have **not** opened in this research, so check it yourself: [The CP-SAT Primer](https://d-krupke.github.io/cpsat-primer/)
+- Community guide, **not opened**: [The CP-SAT Primer](https://d-krupke.github.io/cpsat-primer/)
 
-### What I believe but did not verify (check in the experiment)
+## 5. A fault found in the backtracking code
 
-- The order in which `enumerate_all_solutions` returns schedules is not documented as stable or lexicographic. We can make runs repeatable with a fixed seed and one worker, but we cannot choose the order.
-- Enumeration mode may restrict parallelism, and may interact with presolve.
-- "Give me the next schedule" is not a built-in operation. The usual approach is to solve again with an extra constraint excluding each schedule already shown. That works for tens of schedules; the cost grows as the excluded list grows.
+The notebook's backtracking engine starts every performer's "last appearance" at slot 0. Its capacity check then assumes nobody can start before slot k + 1. For k = 1 this does no harm, but for k of 2 or more it throws away valid schedules.
 
-### Strengths and weaknesses
+Example: 5 performances A, B, C, X1, X2, where X is in both X1 and X2, at k = 2 with no breaks. Brute force finds **36** valid schedules; the notebook's backtracking finds **24**. Starting the value at `-k` instead of `0` gives 36, which confirms the cause. The tiny datasets did not expose it, so the brute-force agreement in section 2 was luck at k = 2.
 
-| Strengths | Weaknesses |
-|---|---|
-| Strong at proving "no schedule exists", which matters for infeasible pinning | Order of results is not under our control |
-| Extra constraints later (quick-change time, preferences) are easy to add | "Next schedule" needs exclusion constraints |
-| Can optimise (e.g. maximise the smallest gap) if we ever want that | Large dependency to install, harder to explain to others |
-| Mature, fast, well documented | The search is a black box, so bugs are harder to trace |
+What this means:
 
-## 2. Option B: custom backtracking
+- Backtracking was not carried forward, so the fault is not being fixed. If backtracking is ever revisited, fix this first.
+- Every case in the experiment where both engines gave a verdict agreed, so none of the results above are contradicted. But backtracking's "exhausted" at k of 2 or more was not independent evidence. Its one-step "exhausted" for the real show at k=3 with 0 breaks very likely comes from this same check (reasoned from the code, not traced). The answer is right: CP-SAT agrees, and a group of 6 clashing performances needs 21 slots at k=3 against 19.
+- The "Rough" results in `test-datasets.md` came from an earlier quick search that may share the fault. They are to be refreshed from the CP-SAT results (roadmap, Phase 3).
+- The 5-performance example is now a required test for the finder (`schedule-finder.md`, edge cases).
 
-### The idea
+## 6. Believed but not verified
 
-Build the running order slot by slot from left to right. At each slot, try the candidates
-in a fixed order. If a choice leads to a dead end, undo it and try the next one.
-Because the order is fixed, the sequence of schedules found is always the same,
-and it is lexicographic (like a dictionary).
+- That the order is stable across OR-Tools versions or machines. Only "same machine, same code, twice" was tested (D32).
+- That a different seed changes the list in a useful way (Q14).
+- That the list is complete on shows of 20 performances. Completeness was checked against brute force only on shows of 6 or fewer performances; beyond that it rests on the solver being correct and on every schedule passing the schedule checker.
+- How long it takes to reach very high schedule numbers (such as number 10,000). The default limit of 100 keeps this bounded; 1,000 took 0.89 s on one synthetic show.
+- That the blocking-pins report is useful on messier cases. It was tried once.
 
-### State
-
-- The partly built running order (slots 1 to p - 1 filled)
-- The set of performances not yet placed
-- The number of free breaks still available (total breaks minus pinned breaks minus free breaks already used)
-- The pins, as a lookup from slot to item
-
-### Fixed candidate order ("canonical order")
-
-Performances are put in a fixed list (alphabetical by cleaned name, unless a shuffle seed is
-given, in which case the list is shuffled using that seed; see D15 in `design-decisions.md`). At each slot the candidates are tried in that list
-order, with BREAK tried last. This order defines which schedule is "first", "second" and so on.
-
-### Steps at each slot p
-
-1. If slot p is pinned, the only candidate is the pinned item. Otherwise the candidates are every unplaced performance that is not pinned elsewhere, in canonical order, plus BREAK if a free break remains.
-2. **Legality check** for a performance X: it is illegal if X conflicts with any performance in slots p - k to p - 1 (only the last k slots need checking, because everything earlier is already far enough away). It is also illegal if it conflicts with a performance pinned in one of the next k slots.
-3. **Pruning check** after the tentative placement. Reject the choice now if any of these fail:
-   - Performer capacity: a performer with r performances still to place needs at least (r - 1)(k + 1) + 1 slots, starting no earlier than their last appearance plus k + 1. If the remaining slots cannot hold that, this branch is dead.
-   - Every unplaced performance still has at least one slot it could legally occupy.
-   - Every pinned item further on can still be placed legally.
-4. Place the item and move to slot p + 1.
-5. When slot N is filled, report the schedule, then keep going (backtrack to the deepest slot that has untried candidates) to find the next one.
-
-### Results are one of three kinds
-
-| Outcome | Meaning |
-|---|---|
-| Schedule found | Reported and passed through the schedule checker |
-| Exhausted | The whole search was completed: there are no more schedules. This is a proof. |
-| Stopped | A time or node limit was reached before finishing. Not a proof either way. |
-
-The tool must never present "stopped" as "none exist".
-
-### Next on demand
-
-The search is a Python generator: asking for the next schedule resumes where it stopped.
-For the UI, which may rerun between clicks, the last schedule shown can serve as a bookmark:
-the search restarts with that schedule as its prefix and carries on from the next candidate.
-This is possible only because the order is fixed.
-
-### Picking schedules by number
-
-The search numbers schedules 1, 2, 3, ... as it finds them. To output a chosen set (for example 1, 4 and 9) it runs until the highest number picked, keeps only the chosen schedules and discards the rest. Reaching a high number costs time, so the time and size limits apply here too.
-
-### Counting
-
-Same search without storing results, with a cap ("at least 10,000 schedules").
-
-### Infeasibility explanation
-
-Run the existence search again with each pin removed in turn, and report the pins whose removal gives a schedule.
-
-### Strengths and weaknesses
-
-| Strengths | Weaknesses |
-|---|---|
-| Fixed, lexicographic, repeatable order | Worst case is exponential; slow on near-impossible requests unless pruning is strong |
-| "Next schedule" and "resume" are natural | We write and test the pruning ourselves |
-| No heavy dependency; easy to explain and debug | Each new kind of constraint needs new code |
-| Good fit for the "show me every option" goal (D4) | Cannot optimise, only enumerate |
-
-### Consequence of lexicographic order
-
-Early schedules in a lexicographic list share long beginnings (they differ near the end).
-Looking at the first five may feel like seeing one schedule five times. The organiser's
-remedy is to pin more slots, which is exactly the workflow you described. The optional
-seed shuffles the canonical order, which changes where the list starts without losing completeness (D15).
-
-## 3. Where each approach fits in the workflow
+## 7. Where the engine sits in the workflow
 
 ```
-performer CSV -> io (load, clean) -> conflicts -> pre-checks -> SEARCH ENGINE -> validator -> output
-                                                               (A or B)        (cross-check)
+performer CSV -> io (load, clean) -> conflicts -> pre-checks -> CP-SAT (solver.py) -> validator -> output
+                                                                                    (cross-check)
 ```
 
-| Stage | Role of the search engine |
-|---|---|
-| Project structure | Lives in `solver.py` behind one function that returns schedules and a status (found / exhausted / stopped). Nothing else in the project knows which engine is inside. If the engines grow large, split into `search_backtracking.py` and `search_cpsat.py`, but not before. |
-| Phase 3, the experiment | Both are prototyped in a notebook on the same data and compared (below). |
-| Testing | Whichever engine is used is checked two ways: every schedule goes through the schedule checker, and on small examples (up to about 7 performances) the number of schedules is compared with a brute-force count over all orderings. |
-| Possible hybrid | Backtracking for enumeration; CP-SAT only to prove infeasibility on hard cases. Only worth the added dependency if backtracking proves too slow there. |
-
-## 4. The experiment that settles Q2
-
-Run both on (a) the small synthetic example, and (b) a synthetic show with about 20
-performances and 120 performers, at k = 1, 2 and 3, with and without pins.
-
-| Question | Measure |
-|---|---|
-| Is the first schedule quick? | Time to the first schedule |
-| Is "no schedule" proved quickly? | Time to prove infeasibility on hard cases (k large, awkward pins) |
-| Is the order repeatable? | Same input twice gives the same sequence |
-| Is "next" cheap? | Time for schedules 1, 10, 100 |
-| Is it correct? | Counts match brute force on small cases |
-
-**Tentative recommendation (to confirm by the experiment):** build the backtracking engine
-first. It delivers the fixed order and cheap "next" that decision D4 needs, avoids a large
-dependency for a tool aimed at non-technical users, and is a good way to learn the problem.
-Keep CP-SAT as the benchmark and as the fallback if backtracking is too slow on infeasible cases.
+**Testing.** Every schedule is checked two ways: it goes through the schedule checker, and on small examples (up to about 7 performances, plus the 5-performance hand-made case) the number of schedules is compared with a brute-force count over all orderings. The brute-force helper is in `tests/test_validator.py`. Same input twice must give the same list.

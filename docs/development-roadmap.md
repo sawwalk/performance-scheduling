@@ -26,17 +26,19 @@ Each step ends with tests passing and a commit.
 - [ ] Try it on the example data in a notebook
 
 ## Phase 3: Schedule finder (basic)
-- [ ] Notebook experiment to settle decision Q2 (search engine), as set out in `search-approaches.md`
+- [x] Notebook experiment settled decision Q2: OR-Tools CP-SAT (D29, 2026-10-17)
+- [ ] Record the installed OR-Tools version in `environment.md` (D32)
+- [ ] Refresh the "Rough" results in `test-datasets.md` with the CP-SAT results from the experiment
 - [ ] Brute-force reference counter for small examples (used to test any engine)
-- [ ] `solver.py`: first valid schedule, any `k`, any number of breaks
+- [ ] `solver.py` (CP-SAT): first valid schedule, any `k`, any number of breaks, with a time limit
 - [ ] Every result passed through the checker in tests
 - [ ] `cli.py`: finder command, writing all requested schedules side by side in one CSV
 
 ## Phase 4: Finder controls
 - [ ] Fixed positions (`io.py` reader plus solver support)
-- [ ] Enumeration: next schedule on demand, no repeats, exhaustion
-- [ ] Optional shuffle seed (repeatable), `--pick`, `--limit`, and printing the command for the next batch
-- [ ] Pre-checks and infeasibility explanations
+- [ ] Enumeration: more schedules on demand by re-running and skipping (D33), no repeats, exhaustion
+- [ ] Optional shuffle seed (repeatable; method decided by a test, Q14), `--pick`, `--limit`, and printing the command for the next batch
+- [ ] Pre-checks and infeasibility explanations (including the blocking pins reported by the solver, D34)
 - [ ] Short prompt after a successful run inviting the user to try a larger `k`
 
 ## Phase 5: Interface and polish

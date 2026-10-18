@@ -4,9 +4,10 @@ The performer loader turns the organiser's CSV into a PerformerData (see models.
 and reports anything odd it noticed along the way. The cleaning rules are described in
 docs/input-data.md.
 
-Two kinds of file are read: the performer CSV and schedule files (a proposed running
-order, or several side by side). The performer loader is split in three so each part is
-easy to test:
+Three kinds of file are read: the performer CSV, schedule files (a proposed running
+order, or several side by side) and the fixed-positions file (items pinned to slots).
+Schedules can also be written. The performer loader is split in three so each part is
+easy to test (the other readers follow the same pattern):
 
 * make_key / clean_text   tidy one piece of text
 * parse_performers        works on text already in memory (no files; the UI can use it
@@ -21,6 +22,7 @@ import re
 import unicodedata
 from collections.abc import Mapping, Sequence
 from difflib import SequenceMatcher
+from io import StringIO  # the standard library's io, not this file
 from pathlib import Path
 
 from performance_scheduling.models import (
@@ -29,6 +31,8 @@ from performance_scheduling.models import (
     Issue,
     PerformerData,
     PerformerLoad,
+    PinLoad,
+    Pins,
     Schedule,
     ScheduleLoad,
     Severity,
@@ -432,6 +436,181 @@ def parse_schedules(text: str) -> ScheduleLoad:
 def load_schedules(path: str | Path) -> ScheduleLoad:
     """Read a schedule file (one or several schedules side by side)."""
     return parse_schedules(read_text(path))
+
+
+# ---------------------------------------------------------------- fixed-positions reader
+
+
+def parse_pins(text: str) -> PinLoad:
+    """Read fixed-positions CSV text: a `position` column and an `item` column.
+
+    Raises InputError if the *file* is unusable: no `position` or `item` column, a position
+    that is not a whole number from 1, an item that is missing, a position used twice or a
+    performance pinned twice. Every such problem is reported together, with row numbers.
+    It does not judge the *contents*: a name that is not in the performer file, or a
+    position beyond the end of the show, loads as written and the finder's pre-checks
+    report it (decision D36, in the same spirit as D22).
+
+    Details:
+    * The `position` column may have any capitalisation and sit anywhere. The other column
+      is `item`; if the file has exactly two columns, the one that is not `position` is
+      used whatever it is called.
+    * BREAK in any capitalisation is a break. It may be pinned many times.
+    * Names are cleaned the same way as in the performer file, so they match.
+    * A file with no pinned rows is allowed (with a warning): nothing is pinned.
+    """
+    rows = list(csv.reader(text.splitlines(keepends=True), delimiter=_detect_delimiter(text)))
+    header_index = next((i for i, row in enumerate(rows) if any(cell.strip() for cell in row)), None)
+    if header_index is None:
+        raise InputError([Issue(Severity.ERROR, "The file is empty.")])
+
+    header = list(rows[header_index])
+    while header and not clean_text(header[-1]):  # Excel sometimes adds empty trailing columns
+        header.pop()
+    names = [clean_text(cell) for cell in header]
+    listing = ", ".join(f'"{name}"' for name in names)
+
+    errors: list[Issue] = []
+    position_columns = [i for i, name in enumerate(names) if make_key(name) == "position"]
+    item_columns = [i for i, name in enumerate(names) if make_key(name) == "item"]
+    position_column = item_column = 0
+    if not position_columns:
+        errors.append(Issue(Severity.ERROR, f'No "position" column. Columns in the file: {listing}.'))
+    elif len(position_columns) > 1:
+        errors.append(Issue(Severity.ERROR, 'More than one column is called "position".'))
+    else:
+        position_column = position_columns[0]
+    if len(item_columns) > 1:
+        errors.append(Issue(Severity.ERROR, 'More than one column is called "item".'))
+    elif item_columns:
+        item_column = item_columns[0]
+    elif len(names) == 2 and len(position_columns) == 1:
+        item_column = 1 - position_column
+    elif position_columns:  # only say this when the position column itself was fine
+        errors.append(Issue(Severity.ERROR, f'No "item" column. Columns in the file: {listing}.'))
+    if errors:
+        raise InputError(errors)
+
+    issues: list[Issue] = []
+    extras = [name for i, name in enumerate(names) if i not in (position_column, item_column) and name]
+    if extras:
+        ignored = ", ".join(f'"{name}"' for name in extras)
+        issues.append(Issue(Severity.WARNING, f"Ignoring other column(s): {ignored}."))
+
+    slots: dict[int, str] = {}
+    spellings: dict[str, str] = {}
+    row_of_position: dict[int, int] = {}
+    row_of_performance: dict[str, int] = {}
+    for row_number, row in enumerate(rows[header_index + 1 :], start=header_index + 2):
+        if not any(cell.strip() for cell in row):
+            continue  # completely blank rows are skipped quietly
+        if any(cell.strip() for cell in row[len(header) :]):
+            issues.append(
+                Issue(
+                    Severity.WARNING,
+                    "has more cells than the header has columns; the extra cells are ignored",
+                    row_number,
+                )
+            )
+        raw_position = (row[position_column] if position_column < len(row) else "").strip()
+        raw_item = row[item_column] if item_column < len(row) else ""
+        key = make_key(raw_item)
+        item = BREAK if key == BREAK.casefold() else key
+
+        problems: list[str] = []
+        position: int | None = None
+        if not raw_position:
+            problems.append("position is missing")
+        elif not _WHOLE_NUMBER.fullmatch(raw_position):
+            problems.append(f'position "{raw_position}" is not a whole number')
+        elif int(raw_position) == 0:
+            problems.append("position 0 is not allowed: positions start at 1")
+        else:
+            position = int(raw_position)
+        if not key:
+            problems.append("item is missing")
+        if position is not None and position in row_of_position:
+            problems.append(
+                f"position {position} is repeated (also used in row {row_of_position[position]})"
+            )
+        if key and item != BREAK and item in row_of_performance:
+            problems.append(
+                f'"{clean_text(raw_item)}" is pinned more than once '
+                f"(also in row {row_of_performance[item]})"
+            )
+        if problems:
+            errors.extend(Issue(Severity.ERROR, problem, row_number) for problem in problems)
+            continue
+
+        assert position is not None  # no problems means the position was read
+        slots[position] = item
+        row_of_position[position] = row_number
+        if item != BREAK:
+            row_of_performance[item] = row_number
+            spellings.setdefault(item, clean_text(raw_item))
+    if errors:
+        raise InputError(errors)
+
+    if not slots:
+        issues.append(Issue(Severity.WARNING, "The file has no pinned rows, so nothing is pinned."))
+    pins = Pins(slots=dict(sorted(slots.items())), display_names=spellings)
+    return PinLoad(pins=pins, warnings=tuple(issues))
+
+
+def load_pins(path: str | Path) -> PinLoad:
+    """Read a fixed-positions file. Raises InputError if unusable."""
+    return parse_pins(read_text(path))
+
+
+# ---------------------------------------------------------------- schedule writer
+
+
+def format_schedules(schedules: Sequence[Schedule], performance_names: Mapping[str, str]) -> str:
+    """CSV text for one or several schedules side by side (the format of docs/input-data.md).
+
+    The first column is `position`; each schedule is one column, headed by its name.
+    Performances are written with the spelling from `performance_names` (the performer
+    file's display names), falling back to the spelling the schedule came from, then to the
+    key itself. Breaks are written as BREAK. The text can be read back by parse_schedules,
+    so the finder's output can be given straight to the schedule checker.
+
+    Raises ValueError for a request the program should never make: no schedules, schedules
+    of different lengths, or names that could not be told apart in a file (empty, "position",
+    or the same name twice, ignoring case and spaces).
+    """
+    if not schedules:
+        raise ValueError("there are no schedules to write")
+    length = schedules[0].num_slots
+    if any(schedule.num_slots != length for schedule in schedules):
+        raise ValueError("all schedules must have the same number of slots")
+    seen: set[str] = set()
+    for schedule in schedules:
+        key = make_key(schedule.name)
+        if not key or key == "position" or key in seen:
+            raise ValueError(
+                f'schedule name "{schedule.name}" cannot be used as a column heading '
+                '(it is empty, is "position", or repeats another name)'
+            )
+        seen.add(key)
+
+    def shown(schedule: Schedule, slot: str) -> str:
+        if slot == BREAK:
+            return BREAK
+        return performance_names.get(slot) or schedule.display_names.get(slot) or slot
+
+    buffer = StringIO()
+    writer = csv.writer(buffer, lineterminator="\n")
+    writer.writerow(("position", *(schedule.name for schedule in schedules)))
+    for index in range(length):
+        writer.writerow((index + 1, *(shown(schedule, schedule.slots[index]) for schedule in schedules)))
+    return buffer.getvalue()
+
+
+def write_schedules(
+    path: str | Path, schedules: Sequence[Schedule], performance_names: Mapping[str, str]
+) -> None:
+    """Write schedules side by side to a CSV file. Raises InputError if it cannot be written."""
+    write_text(path, format_schedules(schedules, performance_names))
 
 
 def write_text(path: str | Path, text: str) -> None:

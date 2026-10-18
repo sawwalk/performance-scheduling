@@ -25,6 +25,10 @@ and files that *use* them (`validator.py`, `solver.py`) all agree on what the pi
 | `PerformerData` | `performances_by_performer`, `performer_names`, `performance_names`; helpers `performance_keys` (alphabetical) and `performers_by_performance` | `io.py` | `conflicts.py`, finder, checker |
 | `PerformerLoad` | `data` (a `PerformerData`), `warnings` (tuple of `Issue`), `rows_read`, `rows_used` | `io.py` | CLI/UI (to show a summary and the warnings), everything else uses `.data` |
 | `ScheduleLoad` | `schedules` (tuple of `Schedule`), `warnings` (tuple of `Issue`) | `io.py` (schedule reader) | checker |
+| `Pins` | `slots` (position -> performance key or `BREAK`), `display_names` (optional: the spelling used in the file; ignored when pins are compared); helpers `break_positions` and `performance_positions` | `io.py` (fixed-positions reader) | finder |
+| `PinLoad` | `pins` (a `Pins`), `warnings` (tuple of `Issue`) | `io.py` (fixed-positions reader) | CLI/UI (to show the warnings); the finder uses `.pins` |
+| `FinderStatus` | `FOUND`, `EXHAUSTED`, `STOPPED` | n/a | `FinderResult` |
+| `FinderResult` | `status`, `schedules` (named `schedule_1`, `schedule_2`, ... by place in the list), `explanation` (tuple of `Issue`: why none exist, or that the time limit was reached), `blocking_pins` (positions of pins that cannot all be kept) | `solver.py` | CLI/UI to display |
 | `Violation` | `performer`, `performance_a` and `position_a` (earlier), `performance_b` and `position_b` (later), `slots_between`, `required` | `validator.py` | CLI/UI to display |
 | `ScheduleCheck` | `schedule_name`, `gap_required`, `num_slots`, `num_breaks`, `problems` (structure), `violations`, `smallest_gap`; property `valid` | `validator.py` | CLI/UI to display |
 | `ConflictMap` | `shared` (pair of performances -> performers they share), `neighbours` (performance -> performances it conflicts with); helpers `conflict(a, b)` and `shared_performers(a, b)` | `conflicts.py` | checker (names the performer), finder (fast legality tests) |
@@ -75,7 +79,7 @@ For a show of this size (about 120 performers, at most a handful of performances
 
 These are added when the phase that needs them is reached:
 
-- Fixed positions / pins and the finder's settings (Phase 4)
+- The finder's settings (gap, breaks, limit, seed) as one container. For now they are separate arguments of `find_schedules`. The finder's result (`FinderResult`) and pins are in, because the code that makes them is built
 
 ## Tests
 

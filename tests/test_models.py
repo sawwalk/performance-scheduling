@@ -7,10 +7,14 @@ import pytest
 from performance_scheduling.models import (
     BREAK,
     ConflictMap,
+    FinderResult,
+    FinderStatus,
     InputError,
     Issue,
     PerformerData,
     PerformerLoad,
+    PinLoad,
+    Pins,
     Schedule,
     Severity,
 )
@@ -89,3 +93,42 @@ def test_performer_load_carries_the_data_and_counts():
     load = PerformerLoad(data=make_performer_data(), warnings=(), rows_read=4, rows_used=4)
     assert load.data.performance_keys == ("ballet", "jazz", "tap")
     assert load.warnings == ()
+
+
+def test_pins_know_which_slots_are_breaks_and_where_performances_are_pinned():
+    pins = Pins(slots={1: "jazz", 12: BREAK, 5: BREAK, 20: "tap"})
+    assert pins.break_positions == (5, 12)
+    assert pins.performance_positions == {"jazz": 1, "tap": 20}
+
+
+def test_no_pins_is_fine():
+    pins = Pins(slots={})
+    assert pins.break_positions == ()
+    assert pins.performance_positions == {}
+
+
+def test_pins_compare_by_slots_only_not_by_spelling():
+    assert Pins(slots={1: "jazz"}, display_names={"jazz": "Jazz"}) == Pins(slots={1: "jazz"})
+
+
+def test_pin_load_carries_the_pins_and_warnings():
+    load = PinLoad(pins=Pins(slots={1: BREAK}), warnings=())
+    assert load.pins.break_positions == (1,)
+    assert load.warnings == ()
+
+
+def test_finder_statuses_have_plain_names():
+    assert [s.value for s in FinderStatus] == ["found", "exhausted", "stopped"]
+
+
+def test_a_finder_result_defaults_to_no_explanation_and_no_blocking_pins():
+    schedule = Schedule(name="schedule_1", slots=("jazz",))
+    result = FinderResult(FinderStatus.FOUND, (schedule,))
+    assert result.schedules == (schedule,)
+    assert result.explanation == () and result.blocking_pins == ()
+
+
+def test_a_finder_result_can_carry_an_explanation_and_blocking_pins():
+    reason = Issue(Severity.ERROR, "no schedule exists")
+    result = FinderResult(FinderStatus.EXHAUSTED, (), explanation=(reason,), blocking_pins=(3, 4))
+    assert result.explanation == (reason,) and result.blocking_pins == (3, 4)

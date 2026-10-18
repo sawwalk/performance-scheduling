@@ -2,7 +2,7 @@
 
 Tools for organising the running order of a dance show so that no performer appears too soon after a previous performance.
 
-**Status:** early development. The schedule checker works; the schedule finder is not built yet.
+**Status:** early development. The schedule checker works. The schedule finder's engine is built; its command is not yet.
 
 ## What it does
 

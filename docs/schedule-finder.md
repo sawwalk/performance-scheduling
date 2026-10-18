@@ -15,7 +15,7 @@ has pinned, and hand out further schedules on demand, so the organiser can compa
 - Optional fixed-positions CSV (see `input-data.md`)
 - Which schedules to output, by their number in the finder's list (default `1-5`); see "Choosing schedules"
 - Maximum number of schedules per run (default 100)
-- Optional shuffle seed (a whole number). Without one, a fixed default seed is used
+- Optional shuffle seed (a whole number). Without one, the default list is used
 - Time limit for one run (proposed default 30 seconds; see Q13)
 
 Total slots `N = number of performances + number of breaks`.
@@ -53,15 +53,16 @@ Schedules are numbered 1, 2, 3, ... by their place in this list. If OR-Tools is 
 
 **Checks before searching.** Cheap tests catch impossible requests at once and give a specific reason in plain language:
 
-- Contradicting pins (two items in one slot, a pin outside 1..N, more pinned breaks than breaks)
+- Contradicting pins: a pin outside 1..N, a pinned name that is not in the performer file (with a "Did you mean..." hint), more pinned breaks than breaks. (The same slot, or the same performance, pinned twice is already refused when the pin file is read: D36)
 - A performer who needs more slots than exist: `(m - 1)(k + 1) + 1 > N`
-- A group of `m` performances that all clash with each other needs the same number of slots, `(m - 1)(k + 1) + 1`. (Example from the real show: its largest such group has 6 performances, so k = 3 needs 21 slots against 19 performances.)
+- A group of `m` performances that all clash with each other needs the same number of slots, `(m - 1)(k + 1) + 1`. It is reported only when the group is larger than any one performer's list, since otherwise the performer check has already said it. (Example from the real show: its largest such group has 6 performances, so k = 3 needs 21 slots against 19 performances.)
 - Two pinned performances that conflict but are too close together
+
+All the checks that fail are reported together. If any fails, no search is run and the status is *exhausted*: nothing can satisfy the request (D40).
 
 The solver proves "no schedule exists" in a fraction of a second in the experiment (0.01 to 1.7 s), so these checks are for giving a clear explanation, not for speed. They are necessary but not sufficient: passing them does not mean a schedule exists (`test-datasets.md`, `tiny_needs_breaks.csv`).
 
-**Cross-check.** Every schedule produced is passed through the schedule checker before
-being written. This guarantees the two tools agree.
+**Cross-check.** Inside the finder, every schedule produced is passed through the schedule checker, compared with the pins, and checked for the right number of breaks and for repeats (D39). If one fails, the run stops with an error rather than hand over a schedule that does not work. This guarantees the two tools agree.
 
 **Scale note.** 20 performances can be ordered in an astronomically large number of ways.
 With few conflicts the number of valid schedules is enormous, so "all schedules" is only
@@ -71,8 +72,7 @@ realistic once enough items are pinned. The tool can show a count capped at a li
 **What to expect from the order.** Neighbouring schedules in the list still look alike: in the
 experiment, neighbouring schedules differed in about 3 slots out of 20. To see more varied options, pin
 more items, or give a **shuffle seed**. A seed changes where the list starts. It is still complete
-and repeatable: the same input and the same seed give the same list. How the seed does this is
-decided by a small test when `solver.py` is built (Q14, D31). If the organiser asks for a shuffle
+and repeatable: the same input and the same seed give the same list. It works by changing the order in which the model is built, using a fixed hash of the seed and each name (D38). In the experiment four settings gave four different first-five lists; the solver's own random seed gave the same start every time, so it is not used. If the organiser asks for a shuffle
 without choosing a number, the tool chooses one and displays it, so the result can be reproduced.
 
 ## Features
@@ -151,7 +151,7 @@ On screen:
 - Exhausting all schedules on a small example and comparing with a brute-force count, **including a hand-made case where a performer with two performances can start early at k = 2** (5 performances: A, B, C and X1, X2 with X in both X1 and X2; brute force gives 36 schedules). The tiny datasets alone did not catch the backtracking fault described in `search-approaches.md`, section 5
 - No schedule is listed twice (the helper variables in the model must not create duplicates)
 - Same input run twice gives the same list
-- Same seed gives the same list; on small examples, different seeds give the same set of schedules (a different order is expected; see Q14)
+- Same seed gives the same list; on small examples, different seeds give the same set of schedules (a different order is expected; see D38)
 - A pick that names schedules beyond the end of the list (the ones that exist are written, and the tool says which do not)
 - `all` on a list longer than the limit, and an explicit pick longer than the limit
 - Pick syntax: single numbers, ranges, mixed lists, duplicates, spaces, and invalid text

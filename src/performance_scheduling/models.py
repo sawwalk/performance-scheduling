@@ -178,6 +178,44 @@ class ScheduleLoad:
 
 
 @dataclass(frozen=True)
+class Pins:
+    """Items the organiser has fixed to chosen slots (the schedule finder's fixed positions).
+
+    `slots` maps a position (numbered from 1) to a performance key or BREAK. The mapping
+    is meant to be read-only. Nothing here checks the pins against a show: whether a name
+    exists or a position is within the show is for the finder's pre-checks to say.
+    """
+
+    slots: Mapping[int, str]
+    # Performance key -> the spelling used in the file the pins came from, so a name that
+    # is not in the performer data can be shown the way the organiser wrote it. Ignored
+    # when two sets of pins are compared.
+    display_names: Mapping[str, str] = field(default_factory=dict, compare=False)
+
+    @property
+    def break_positions(self) -> tuple[int, ...]:
+        """The positions pinned as breaks, in ascending order."""
+        return tuple(sorted(position for position, item in self.slots.items() if item == BREAK))
+
+    @property
+    def performance_positions(self) -> dict[str, int]:
+        """Pinned performance key -> its position. Breaks are left out."""
+        return {item: position for position, item in self.slots.items() if item != BREAK}
+
+
+@dataclass(frozen=True)
+class PinLoad:
+    """What the fixed-positions reader returns: the pins plus any warnings.
+
+    The reader checks the *file* (columns, positions, repeats) but not the *contents*
+    (decision D36). Errors in the file itself stop reading by raising InputError.
+    """
+
+    pins: Pins
+    warnings: tuple[Issue, ...]
+
+
+@dataclass(frozen=True)
 class Violation:
     """One broken spacing rule: a performer who has too little rest between two performances.
 
@@ -217,3 +255,33 @@ class ScheduleCheck:
     @property
     def valid(self) -> bool:
         return not self.problems and not self.violations
+
+
+class FinderStatus(Enum):
+    """How a run of the schedule finder ended. The tool always says which."""
+
+    FOUND = "found"          # the number of schedules asked for were produced
+    EXHAUSTED = "exhausted"  # the search finished (or the request is impossible): no more exist
+    STOPPED = "stopped"      # the time limit was reached; this proves nothing either way
+
+
+@dataclass(frozen=True)
+class FinderResult:
+    """What the schedule finder returns.
+
+    `schedules` are the first schedules in the finder's list, named schedule_1,
+    schedule_2, ... by their place in that list (decision D20). Whatever the status, any
+    schedules found are included.
+
+    `explanation` is plain language for the organiser. It is filled in when no schedule
+    could be found: why none exist (EXHAUSTED) or that the time limit was reached (STOPPED).
+
+    `blocking_pins` holds the positions of pins that cannot all be kept at once, when the
+    solver could say which (decision D34). The set explains the failure but is not
+    guaranteed to be the smallest one.
+    """
+
+    status: FinderStatus
+    schedules: tuple[Schedule, ...]
+    explanation: tuple[Issue, ...] = ()
+    blocking_pins: tuple[int, ...] = ()

@@ -31,7 +31,7 @@ Install for development: `pip install -e ".[dev]"`. This includes OR-Tools, so t
 
 Design choice: the **core** (`models`, `io`, `conflicts`, `validator`, `solver`) uses
 only the standard library `csv` module plus the solver, so the logic stays small and
-easy to test. `pandas` is reserved for notebooks and the UI. Dependencies are split
+easy to test. `pandas` is reserved for notebooks and the UI. (OR-Tools itself installs `numpy` and `pandas`, so they are present wherever the finder is installed; the core code still does not import them.) Dependencies are split
 into "core", "finder", "dev" and "ui" groups so the checker can be installed without the rest. The UI will run the finder, so it will need the `finder` group too.
 
 ## VS Code
@@ -42,5 +42,5 @@ appear in the Testing panel.
 ## Reproducibility
 
 - Pin minimum versions in `pyproject.toml`; record exact versions used when the project stabilises.
-- **OR-Tools version matters.** The order of the finder's list, and so its schedule numbers, can change between versions (D32). Record the exact version in use here: **to be filled in** (run `pip show ortools`).
+- **OR-Tools version matters.** The order of the finder's list, and so its schedule numbers, can change between versions (D32). Record the exact version in use here: **9.15.6755** (recorded 2026-10-17).
 - CI is not planned yet. Revisit if more contributors join.

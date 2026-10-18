@@ -42,7 +42,7 @@ to exist before it has content.
 | `io.py` | Reading and cleaning the performer CSV, reading schedule and fixed-position files, writing schedule CSVs. The only place where files are touched. | Yes |
 | `conflicts.py` | From cleaned performer data, works out which performances conflict and which performers cause each conflict. | No |
 | `validator.py` | Schedule checker logic: given conflicts, a schedule and k, returns a list of problems. | No |
-| `solver.py` | Schedule finder logic: given conflicts, k, number of breaks and fixed positions, produces schedules one at a time. | No |
+| `solver.py` | Schedule finder logic: given the performer data, k, number of breaks, pins and a seed, runs the pre-checks, lists schedules with OR-Tools CP-SAT, cross-checks each one with `validator.py` and explains why when there are none. OR-Tools is loaded only when a search runs. | No |
 | `selection.py` | Turns a typed choice such as `1-3,7,20-22` or `all` into a list of schedule numbers, with a clear error for bad text. Pure function, no files. It sits in the shared layer because both the command line and the UI need it, and they must not import from each other. (Approved 2026-10-12.) | No |
 | `report.py` | Turns check results into plain-language text and CSV text: the sentence for each violation, the table for several schedules, the report file contents. Also groups violations by pair of performances (`group_violations`) so both interfaces list the clashing pairs first and then who is affected. Returns text and data, never prints. It sits in the shared layer for the same reason as `selection.py`: the command line and the UI must show identical wording and must not import from each other. (Added 2026-10-15; can be folded into `cli.py` if you prefer.) | No |
 | `cli.py` | Command-line entry points. Reads arguments, calls `io`, then `validator` or `solver`, prints results using `report`. No scheduling logic. | Via `io` |
@@ -51,9 +51,9 @@ to exist before it has content.
 
 ## Dependency rule
 
-    models  <-  io, conflicts, selection, report  <-  validator, solver  <-  cli (and later the UI)
+    models  <-  io, conflicts, selection, report  <-  validator  <-  solver  <-  cli (and later the UI)
 
-(`report` only needs the result containers in `models`, so it sits beside `validator` rather than depending on it.)
+(`report` only needs the result containers in `models`, so it sits beside `validator` rather than depending on it. `solver` imports `validator` so that every schedule it finds is cross-checked: decision D39.)
 
 A module may import from anything to its left, never from its right. In particular
 `validator.py` and `solver.py` never read files and never print; they take data in and

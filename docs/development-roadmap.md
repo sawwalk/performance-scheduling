@@ -27,18 +27,22 @@ Each step ends with tests passing and a commit.
 
 ## Phase 3: Schedule finder (basic)
 - [x] Notebook experiment settled decision Q2: OR-Tools CP-SAT (D29, 2026-10-17)
-- [ ] Record the installed OR-Tools version in `environment.md` (D32)
+- [x] Record the installed OR-Tools version in `environment.md` (D32): 9.15.6755
 - [ ] Refresh the "Rough" results in `test-datasets.md` with the CP-SAT results from the experiment
-- [ ] Brute-force reference counter for small examples (used to test any engine)
-- [ ] `solver.py` (CP-SAT): first valid schedule, any `k`, any number of breaks, with a time limit
-- [ ] Every result passed through the checker in tests
+- [x] Brute-force reference counter for small examples (in `tests/test_solver.py`)
+- [x] `solver.py` (CP-SAT): schedules for any `k`, any number of breaks, with a time limit (D38 to D41)
+- [x] Every result passed through the checker, inside the finder and in tests (D39)
+- [x] `io.py`: write schedules side by side (`format_schedules`, `write_schedules`; D37)
 - [ ] `cli.py`: finder command, writing all requested schedules side by side in one CSV
 
 ## Phase 4: Finder controls
-- [ ] Fixed positions (`io.py` reader plus solver support)
-- [ ] Enumeration: more schedules on demand by re-running and skipping (D33), no repeats, exhaustion
-- [ ] Optional shuffle seed (repeatable; method decided by a test, Q14), `--pick`, `--limit`, and printing the command for the next batch
-- [ ] Pre-checks and infeasibility explanations (including the blocking pins reported by the solver, D34)
+- [x] Fixed positions: `io.py` reader (`parse_pins`, `load_pins`; D36)
+- [x] Fixed positions: solver support
+- [x] Enumeration in `solver.py`: the first `count` schedules, no repeats, found / exhausted / stopped
+- [ ] `cli.py`: choose schedules by number, re-running and skipping (D33)
+- [x] Optional shuffle seed in `solver.py` (repeatable; D38)
+- [ ] `cli.py`: `--seed`, `--pick`, `--limit`, and printing the command for the next batch
+- [x] Pre-checks and infeasibility explanations in `solver.py` (including the blocking pins, D34)
 - [ ] Short prompt after a successful run inviting the user to try a larger `k`
 
 ## Phase 5: Interface and polish

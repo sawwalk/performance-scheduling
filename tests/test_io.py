@@ -6,14 +6,19 @@ import pytest
 
 from performance_scheduling.io import (
     clean_text,
+    format_schedules,
     load_performers,
+    load_pins,
     load_schedules,
     make_key,
     parse_performers,
+    parse_pins,
     parse_schedules,
+    write_schedules,
     write_text,
 )
-from performance_scheduling.models import BREAK, InputError, Severity
+from performance_scheduling.models import BREAK, InputError, Schedule, Severity
+from performance_scheduling.validator import check_schedules
 
 EXAMPLES = Path(__file__).resolve().parent.parent / "data" / "examples"
 
@@ -400,3 +405,210 @@ def test_write_text_round_trips_with_accents(tmp_path):
 def test_write_text_to_a_missing_folder_is_a_clear_error(tmp_path):
     with pytest.raises(InputError, match="Could not write"):
         write_text(tmp_path / "missing" / "out.csv", "x")
+
+
+# ================================================================ fixed-positions reader
+
+
+def test_basic_pins_file_is_read():
+    load = parse_pins("position,item\n1,Bollywood (Open)\n12,BREAK\n20,Hip Hop (Foundations)\n")
+    assert load.pins.slots == {1: "bollywood (open)", 12: BREAK, 20: "hip hop (foundations)"}
+    assert load.pins.display_names == {
+        "bollywood (open)": "Bollywood (Open)",
+        "hip hop (foundations)": "Hip Hop (Foundations)",
+    }
+    assert load.warnings == ()
+
+
+def test_pin_names_are_cleaned_like_the_performer_file_and_the_spelling_is_remembered():
+    load = parse_pins("position,item\n3,  Hip   Hop (Open) \n")
+    assert load.pins.slots == {3: "hip hop (open)"}
+    assert load.pins.display_names == {"hip hop (open)": "Hip Hop (Open)"}
+
+
+def test_breaks_are_recognised_in_any_capitalisation_and_may_be_pinned_many_times():
+    load = parse_pins("position,item\n1,break\n2, Break \n3,BREAK\n")
+    assert load.pins.slots == {1: BREAK, 2: BREAK, 3: BREAK}
+    assert load.pins.display_names == {}
+
+
+def test_rows_may_be_in_any_order_and_are_kept_in_position_order():
+    load = parse_pins("position,item\n20,Tap\n1,Jazz\n12,BREAK\n")
+    assert list(load.pins.slots) == [1, 12, 20]
+
+
+def test_position_column_can_be_anywhere_and_is_found_ignoring_case_and_spaces():
+    load = parse_pins("Item,  POSITION \nJazz,2\n")
+    assert load.pins.slots == {2: "jazz"}
+
+
+def test_with_exactly_two_columns_the_other_one_is_the_item_whatever_it_is_called():
+    load = parse_pins("position,performance\n1,Jazz\n")
+    assert load.pins.slots == {1: "jazz"}
+    assert load.warnings == ()
+
+
+def test_extra_columns_are_ignored_with_a_warning():
+    load = parse_pins("position,item,notes\n1,Jazz,opening act\n")
+    assert load.pins.slots == {1: "jazz"}
+    assert warning_texts(load) == ['WARNING: Ignoring other column(s): "notes".']
+
+
+def test_empty_trailing_columns_blank_rows_and_a_byte_order_mark_are_handled(tmp_path):
+    path = tmp_path / "pins.csv"
+    path.write_bytes(b"\xef\xbb\xbfposition,item,,\n1,Jazz,,\n\n,,,\n2,Tap,,\n")
+    load = load_pins(path)
+    assert load.pins.slots == {1: "jazz", 2: "tap"}
+    assert load.warnings == ()
+
+
+def test_semicolon_separated_pin_files_are_understood():
+    assert parse_pins("position;item\n1;Jazz\n").pins.slots == {1: "jazz"}
+
+
+def test_pin_rows_with_extra_cells_beyond_the_header_are_flagged():
+    load = parse_pins("position,item\n1,Jazz,oops\n")
+    assert load.pins.slots == {1: "jazz"}
+    assert "row 2" in warning_texts(load)[0] and "more cells" in warning_texts(load)[0]
+
+
+def test_a_file_with_no_pinned_rows_means_nothing_is_pinned():
+    load = parse_pins("position,item\n")
+    assert load.pins.slots == {}
+    assert warning_texts(load) == ["WARNING: The file has no pinned rows, so nothing is pinned."]
+
+
+def test_the_contents_are_not_judged_by_the_reader():
+    # a name nobody has heard of and a position far beyond any show: the finder's pre-checks
+    # report these, not the reader (decision D36)
+    load = parse_pins("position,item\n999,Salsa (Open)\n")
+    assert load.pins.slots == {999: "salsa (open)"}
+    assert load.warnings == ()
+
+
+@pytest.mark.parametrize(
+    ("text", "fragment"),
+    [
+        ("", "empty"),
+        ("item\nJazz\n", 'No "position" column'),
+        ("position,position\n1,2\n", 'More than one column is called "position"'),
+        ("position,item,item\n1,Jazz,Tap\n", 'More than one column is called "item"'),
+        ("position,style,notes\n1,Jazz,x\n", 'No "item" column'),
+        ("position,item\nx,Jazz\n", 'position "x" is not a whole number'),
+        ("position,item\n1.5,Jazz\n", 'position "1.5" is not a whole number'),
+        ("position,item\n-1,Jazz\n", 'position "-1" is not a whole number'),
+        ("position,item\n,Jazz\n", "position is missing"),
+        ("position,item\n0,Jazz\n", "positions start at 1"),
+        ("position,item\n1,\n", "item is missing"),
+        ("position,item\n1,Jazz\n1,Tap\n", "position 1 is repeated (also used in row 2)"),
+        ("position,item\n1,Jazz\n2, jazz \n", '"jazz" is pinned more than once (also in row 2)'),
+        ("position,item\n1,Jazz\n2,JAZZ\n", '"JAZZ" is pinned more than once'),
+    ],
+)
+def test_unusable_pin_files_give_clear_errors(text, fragment):
+    with pytest.raises(InputError) as caught:
+        parse_pins(text)
+    assert fragment in "\n".join(error_texts(caught.value))
+    assert all(issue.severity is Severity.ERROR for issue in caught.value.issues)
+
+
+def test_every_problem_in_a_pin_file_is_reported_together_with_its_row():
+    with pytest.raises(InputError) as caught:
+        parse_pins("position,item\n1,Jazz\nx,Tap\n1,Ballet\n3,\n4,Jazz\n")
+    texts = error_texts(caught.value)
+    assert any("row 3" in text and "whole number" in text for text in texts)
+    assert any("row 4" in text and "repeated" in text and "row 2" in text for text in texts)
+    assert any("row 5" in text and "item is missing" in text for text in texts)
+    assert any("row 6" in text and "pinned more than once" in text for text in texts)
+
+
+def test_a_row_with_two_problems_reports_both():
+    with pytest.raises(InputError) as caught:
+        parse_pins("position,item\nx,\n")
+    assert len(caught.value.issues) == 2
+
+
+def test_missing_pin_file_is_a_clear_error(tmp_path):
+    with pytest.raises(InputError, match="File not found"):
+        load_pins(tmp_path / "nope.csv")
+
+
+# ================================================================ schedule writer
+
+NAMES = {"jazz": "Jazz (Open)", "tap": "Tap (Foundations)", "ballet": "Ballet"}
+
+
+def test_one_schedule_is_written_with_names_from_the_performer_file():
+    schedule = Schedule(name="schedule_1", slots=("jazz", BREAK, "tap", "ballet"))
+    assert format_schedules([schedule], NAMES) == (
+        "position,schedule_1\n"
+        "1,Jazz (Open)\n"
+        "2,BREAK\n"
+        "3,Tap (Foundations)\n"
+        "4,Ballet\n"
+    )
+
+
+def test_several_schedules_are_written_side_by_side_keeping_their_numbers():
+    first = Schedule(name="schedule_1", slots=("jazz", "tap"))
+    second = Schedule(name="schedule_4", slots=("tap", BREAK))
+    assert format_schedules([first, second], NAMES).splitlines() == [
+        "position,schedule_1,schedule_4",
+        "1,Jazz (Open),Tap (Foundations)",
+        "2,Tap (Foundations),BREAK",
+    ]
+
+
+def test_names_with_commas_are_quoted_and_read_back_correctly():
+    names = {"jazz": "Jazz, Open"}
+    schedule = Schedule(name="s", slots=("jazz",))
+    text = format_schedules([schedule], names)
+    assert '"Jazz, Open"' in text
+    assert parse_schedules(text).schedules[0].slots == ("jazz, open",)
+
+
+def test_a_name_missing_from_the_performer_names_falls_back_to_the_schedules_own_spelling():
+    schedule = Schedule(name="s", slots=("salsa", "x"), display_names={"salsa": "Salsa (Open)"})
+    assert format_schedules([schedule], {}).splitlines()[1:] == ["1,Salsa (Open)", "2,x"]
+
+
+def test_written_schedules_read_back_as_the_same_schedules():
+    first = Schedule(name="schedule_2", slots=("jazz", BREAK, "tap", "ballet"))
+    second = Schedule(name="schedule_9", slots=("ballet", "tap", BREAK, "jazz"))
+    plain = {"jazz": "Jazz", "tap": "Tap", "ballet": "Ballet"}  # spelling equals the key apart from case
+    back = parse_schedules(format_schedules([first, second], plain))
+    assert back.warnings == ()
+    assert [(s.name, s.slots) for s in back.schedules] == [(s.name, s.slots) for s in (first, second)]
+
+
+@pytest.mark.parametrize(
+    "schedules",
+    [
+        [],
+        [Schedule(name="a", slots=("jazz",)), Schedule(name="b", slots=("jazz", "tap"))],
+        [Schedule(name="a", slots=("jazz",)), Schedule(name=" A ", slots=("tap",))],
+        [Schedule(name="Position", slots=("jazz",))],
+        [Schedule(name="  ", slots=("jazz",))],
+    ],
+)
+def test_requests_the_program_should_never_make_are_refused(schedules):
+    with pytest.raises(ValueError):
+        format_schedules(schedules, NAMES)
+
+
+def test_write_schedules_makes_a_file_the_checker_can_read_and_accept(tmp_path):
+    performers = load_performers(EXAMPLES / "tiny_feasible.csv").data
+    original = load_schedules(EXAMPLES / "tiny_feasible_schedules_all8.csv").schedules
+    path = tmp_path / "schedules.csv"
+    write_schedules(path, original, performers.performance_names)
+    assert path.read_bytes().startswith(b"\xef\xbb\xbf")  # byte-order mark, for Excel
+    again = load_schedules(path)
+    assert again.warnings == ()
+    assert [(s.name, s.slots) for s in again.schedules] == [(s.name, s.slots) for s in original]
+    assert all(check.valid for check in check_schedules(performers, again.schedules, gap=1))
+
+
+def test_write_schedules_to_a_missing_folder_is_a_clear_error(tmp_path):
+    schedule = Schedule(name="s", slots=("jazz",))
+    with pytest.raises(InputError, match="Could not write"):
+        write_schedules(tmp_path / "missing" / "out.csv", [schedule], NAMES)

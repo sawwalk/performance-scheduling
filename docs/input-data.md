@@ -113,7 +113,7 @@ Rules:
 
 ## 3. Fixed-positions CSV (finder input, optional)
 
-Pins items to slots. Same columns as the schedule CSV, but only the pinned rows are listed.
+Pins items to slots. Like the schedule CSV, but only the pinned rows are listed.
 
 ```
 position,item
@@ -122,8 +122,17 @@ position,item
 20,Hip Hop (Foundations)
 ```
 
-Rules:
-- A position can be pinned once; a performance can be pinned once.
-- Pinned `BREAK` rows count towards the total number of breaks.
+Rules checked when the file is read (decision D36):
+- The file needs a `position` column (any capitalisation, any place). The other column is `item`; if the file has exactly two columns, the one that is not `position` is used whatever it is called. Other columns are ignored, with a warning. Empty trailing columns and blank rows are ignored.
+- Positions are whole numbers starting at 1.
+- A position can be pinned once; a performance can be pinned once. `BREAK` (any capitalisation) can be pinned as many times as needed.
+- Names are matched using the same cleaning as above, so `bollywood (open)` matches `Bollywood (Open)`.
+- All problems are reported together, with row numbers.
+- A file with no pinned rows means nothing is pinned (with a warning).
+
+Rules checked by the finder before any search begins (not by the reader):
 - Positions must lie within the total number of slots (performances + breaks).
+- Names must be in the performer file (a close match gets a "Did you mean..." hint; nothing is changed automatically).
+- Pinned `BREAK` rows count towards the total number of breaks.
+- Pins that clash (two performances sharing a performer, pinned too close together) are reported.
 - Contradictions are reported before any search begins.

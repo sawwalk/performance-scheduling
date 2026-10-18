@@ -66,7 +66,7 @@ The behaviour the organiser sees is in `schedule-finder.md`. The engine side:
 - **Statuses:** a finished search with no schedule left is *exhausted*; reaching the wanted number is *found*; hitting the time limit is *stopped*. If fewer schedules exist than wanted, the search finishes and the answer is *exhausted*. (The notebook labelled that case "found". The finder must not.)
 - **Counting:** the same search with a cap and without storing schedules ("at least 10,000").
 - **Infeasibility:** a separate model where each pin is switched on by an assumption. If it is infeasible, the solver returns a subset of assumptions that is enough to cause that. This is not used for enumeration.
-- **Seed:** see Q14. Only seed 1 was used in the experiment.
+- **Seed:** the organiser's seed changes the order the model is built in (performances and clashing pairs sorted by a hash of the seed and their names); the solver's own seed stays fixed (D38). Tested on 2026-10-17 on `typical_20_performances`, gap 1, first 5 schedules: the solver's `random_seed` 0, 1, 2 and 3 all gave the same list. Build-order shuffles with no seed and seeds 1, 2 and 3 gave 4 different lists, each repeatable, and on `tiny_feasible` (gap 1, 1 break) all gave the same 152 schedules in different orders.
 
 Sources (carried over from the earlier version of this file; the last was never opened):
 
@@ -92,7 +92,7 @@ What this means:
 ## 6. Believed but not verified
 
 - That the order is stable across OR-Tools versions or machines. Only "same machine, same code, twice" was tested (D32).
-- That a different seed changes the list in a useful way (Q14).
+- That a seed changes the list *usefully*. It changes the first schedules (tested), but neighbouring schedules still look alike (D38).
 - That the list is complete on shows of 20 performances. Completeness was checked against brute force only on shows of 6 or fewer performances; beyond that it rests on the solver being correct and on every schedule passing the schedule checker.
 - How long it takes to reach very high schedule numbers (such as number 10,000). The default limit of 100 keeps this bounded; 1,000 took 0.89 s on one synthetic show.
 - That the blocking-pins report is useful on messier cases. It was tried once.

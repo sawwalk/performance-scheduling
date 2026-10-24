@@ -20,9 +20,17 @@ that in if it wants numbers above it refused.
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass
 
-from performance_scheduling.models import InputError, Issue, Severity
+from performance_scheduling.models import (
+    FinderResult,
+    FinderStatus,
+    InputError,
+    Issue,
+    Schedule,
+    Severity,
+)
 
 _EXAMPLES = "Use numbers, ranges and commas, for example 1,4,9 or 1-3, 7 or the word all."
 _NUMBER = re.compile(r"[0-9]+")
@@ -137,3 +145,67 @@ def parse_selection(
             "Choose fewer, or raise the limit."
         )
     return selection
+
+
+# ---------------------------------------------------------------- choosing from the finder's list
+
+
+def selection_from_numbers(numbers: Iterable[int]) -> Selection:
+    """A Selection of exactly these numbers, written as joined ranges (empty if none)."""
+    return Selection(ranges=_join_overlaps([(n, n) for n in sorted(set(numbers))]))
+
+
+def schedules_to_request(selection: Selection, limit: int) -> int:
+    """How many schedules to ask the finder for: up to the highest one chosen, plus one more.
+
+    The extra one tells the caller whether more schedules exist beyond the choice. With
+    "all" the highest number is the limit.
+    """
+    highest = limit if selection.select_all else selection.highest
+    assert highest is not None  # a parsed choice that is not "all" always has numbers
+    return highest + 1
+
+
+@dataclass(frozen=True)
+class Picked:
+    """What a choice picks out of the finder's list (see apply_selection)."""
+
+    schedules: tuple[Schedule, ...]  # the ones to write, in ascending order of number
+    numbers: Selection               # their numbers, as joined ranges
+    missing: Selection               # numbers asked for that the finder's list does not reach
+    more_exist: bool | None          # True: more after these; False: this is all; None: unknown
+    total: int | None                # the exact number of schedules, known only if the search finished
+
+
+def apply_selection(result: FinderResult, selection: Selection, limit: int) -> Picked:
+    """Pick the chosen schedules out of a finder result (decisions D17, D19, D33).
+
+    The result holds the first schedules of the finder's list, numbered from 1. With "all",
+    the first `limit` are chosen. Numbers the list does not reach are reported as missing:
+    if the search finished they do not exist, and if it was stopped nobody knows.
+    `more_exist` is True when the finder produced the extra schedule asked for (see
+    schedules_to_request), False when the search finished, and None when it was stopped.
+    """
+    produced = len(result.schedules)
+    if selection.select_all:
+        wanted: tuple[tuple[int, int], ...] = ((1, limit),)
+    else:
+        wanted = selection.ranges
+    numbers = [n for start, end in wanted for n in range(start, min(end, produced) + 1)]
+    missing = (
+        []
+        if selection.select_all
+        else [(max(start, produced + 1), end) for start, end in wanted if end > produced]
+    )
+    more_exist = {
+        FinderStatus.FOUND: True,
+        FinderStatus.EXHAUSTED: False,
+        FinderStatus.STOPPED: None,
+    }[result.status]
+    return Picked(
+        schedules=tuple(result.schedules[n - 1] for n in numbers),
+        numbers=selection_from_numbers(numbers),
+        missing=Selection(ranges=tuple(missing)),
+        more_exist=more_exist,
+        total=produced if result.status is FinderStatus.EXHAUSTED else None,
+    )

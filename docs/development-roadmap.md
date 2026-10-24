@@ -33,17 +33,18 @@ Each step ends with tests passing and a commit.
 - [x] `solver.py` (CP-SAT): schedules for any `k`, any number of breaks, with a time limit (D38 to D41)
 - [x] Every result passed through the checker, inside the finder and in tests (D39)
 - [x] `io.py`: write schedules side by side (`format_schedules`, `write_schedules`; D37)
-- [ ] `cli.py`: finder command, writing all requested schedules side by side in one CSV
+- [x] `cli.py`: finder command, writing the chosen schedules side by side in one CSV (D42 to D47)
+- [x] Example fixed-positions file `tiny_feasible_pins.csv` (see `test-datasets.md`)
 
 ## Phase 4: Finder controls
 - [x] Fixed positions: `io.py` reader (`parse_pins`, `load_pins`; D36)
 - [x] Fixed positions: solver support
 - [x] Enumeration in `solver.py`: the first `count` schedules, no repeats, found / exhausted / stopped
-- [ ] `cli.py`: choose schedules by number, re-running and skipping (D33)
+- [x] `cli.py`: choose schedules by number, re-running and skipping (D33)
 - [x] Optional shuffle seed in `solver.py` (repeatable; D38)
-- [ ] `cli.py`: `--seed`, `--pick`, `--limit`, and printing the command for the next batch
+- [x] `cli.py`: `--seed`, `--pick`, `--limit`, and printing the command for the next batch
 - [x] Pre-checks and infeasibility explanations in `solver.py` (including the blocking pins, D34)
-- [ ] Short prompt after a successful run inviting the user to try a larger `k`
+- [x] Short prompt after a successful run inviting the user to try a larger `k`
 
 ## Phase 5: Interface and polish
 - [ ] `ui-design.md`, then the simple UI

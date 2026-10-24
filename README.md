@@ -2,7 +2,7 @@
 
 Tools for organising the running order of a dance show so that no performer appears too soon after a previous performance.
 
-**Status:** early development. The schedule checker works. The schedule finder's engine is built; its command is not yet.
+**Status:** early development. The schedule checker and the schedule finder both work from the command line. A simple interface is planned.
 
 ## What it does
 
@@ -32,6 +32,16 @@ Try it on the examples:
     schedule-checker --performers data/examples/tiny_feasible.csv --schedule data/examples/tiny_feasible_schedule_invalid.csv
 
 See [docs/schedule-checker.md](docs/schedule-checker.md) for all options and the output. After editing `pyproject.toml`, run `pip install -e ".[dev]"` again so the command is registered.
+
+## Using the schedule finder
+
+    schedule-finder --performers data/private/performers.csv --gap 2 --breaks 2 --pick 1-5
+
+Try it on the examples:
+
+    schedule-finder --performers data/examples/tiny_feasible.csv --fixed data/examples/tiny_feasible_pins.csv --breaks 1 --pick 1-5
+
+The schedules are written to `output/` (created if missing) in a file named after the pick, such as `schedules_1-5.csv`. The tool never overwrites a file. It prints the exact command for the next batch, and the file can be given straight to the schedule checker. The finder needs OR-Tools, which `pip install -e ".[dev]"` includes. See [docs/schedule-finder.md](docs/schedule-finder.md) for all options.
 
 ## Data and privacy
 

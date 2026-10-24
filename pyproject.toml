@@ -11,14 +11,14 @@ requires-python = ">=3.11"
 dependencies = []          # the core uses only the Python standard library
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "ruff", "ipykernel", "jupyter", "pandas", "nbstripout", "ortools>=9.15,<10"]
-finder = ["ortools>=9.15,<10"]       # the search engine (decisions D29, D41); the schedule checker does not need it
+dev = ["pytest>=8", "ruff", "ipykernel", "jupyter", "pandas", "nbstripout"]
+solver-experiments = ["ortools"]     # only needed for the CP-SAT experiment (decision Q2)
 ui = ["streamlit", "pandas"]         # later, for the simple interface
 
-# Command-line entry points. The finder is switched on when it exists (Phase 3).
+# Command-line entry points. The finder needs the "finder" extra (OR-Tools) to run.
 [project.scripts]
 schedule-checker = "performance_scheduling.cli:checker_main"
-# schedule-finder = "performance_scheduling.cli:finder_main"
+schedule-finder = "performance_scheduling.cli:finder_main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

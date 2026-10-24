@@ -15,7 +15,13 @@ import csv
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from performance_scheduling.models import Issue, PerformerData, ScheduleCheck, Violation
+from performance_scheduling.models import (
+    FinderStatus,
+    Issue,
+    PerformerData,
+    ScheduleCheck,
+    Violation,
+)
 
 # Long lists of warnings are shortened so the important lines are not buried.
 MAX_ISSUES_SHOWN = 20
@@ -207,3 +213,55 @@ def format_violations_csv(checks: Sequence[ScheduleCheck], data: PerformerData) 
                 )
             )
     return "".join(collector.parts)
+
+
+# ---------------------------------------------------------------- the schedule finder
+#
+# These take plain values (not the selection.py containers) because report.py and
+# selection.py sit side by side in the layers and may not import each other.
+
+
+def format_written(count: int, numbers: str, path: str) -> str:
+    """One sentence saying what was written and where. `numbers` is e.g. "1-5" or "1,4,9"."""
+    label = "number" if count == 1 else "numbers"
+    return f"Wrote {_plural(count, 'schedule')} ({label} {numbers}) to {path}."
+
+
+def format_availability(
+    more_exist: bool | None, *, total: int | None, produced: int, last_number: int
+) -> str:
+    """Whether the finder's list goes on: more exist, this is all of it, or the search was stopped."""
+    if more_exist:
+        return f"More schedules exist after number {last_number}."
+    if more_exist is None:
+        return (
+            f"The search stopped at the time limit after {_plural(produced, 'schedule')}, "
+            "so more may exist."
+        )
+    return f"There {'is' if total == 1 else 'are'} {_plural(total or 0, 'schedule')} in all."
+
+
+def format_missing(numbers: str, count: int, *, stopped: bool, total: int | None) -> str:
+    """Schedule numbers that were asked for but are not in the list."""
+    subject = f"Schedule {numbers} does" if count == 1 else f"Schedules {numbers} do"
+    if stopped:
+        return f"{subject} not appear to have been reached before the time limit."
+    return f"{subject} not exist: there {'is' if total == 1 else 'are'} only {total}."
+
+
+def format_larger_gap_prompt(gap: int) -> str:
+    """A plain invitation to try a longer rest next time (decisions D14, D16). Nothing is checked."""
+    return (
+        f"Schedules found with a gap of {gap}. To see whether everyone could have a longer "
+        f"rest, run again with a gap of {gap + 1}."
+    )
+
+
+def format_no_schedules(status: FinderStatus, explanation: Sequence[Issue]) -> str:
+    """The heading and the reasons when the finder produced no schedule at all."""
+    heading = (
+        "No schedule exists."
+        if status is FinderStatus.EXHAUSTED
+        else "No schedule was found before the time limit."
+    )
+    return "\n".join([heading, *(f"  - {issue.message}" for issue in explanation)])

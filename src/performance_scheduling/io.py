@@ -606,19 +606,67 @@ def format_schedules(schedules: Sequence[Schedule], performance_names: Mapping[s
     return buffer.getvalue()
 
 
+# The most characters of the pick that go into a file name before it is shortened.
+_LONGEST_PICK_LABEL = 40
+
+_EXISTS = (
+    "{path} already exists. Schedules are never written over an existing file: "
+    "choose another folder, or move or delete the file."
+)
+
+
+def schedules_file_name(seed: int | None, pick: str) -> str:
+    """The name of a schedules file (decision D43): the seed, if any, and the pick.
+
+    `schedules_1-5.csv`, `schedules_seed42_6-10.csv`, `schedules_1_4_9.csv`, `schedules_all.csv`.
+    Commas in the pick become underscores. A pick too long for a file name is shortened to its
+    first and last number (two different picks can then share a name; the finder refuses to
+    overwrite, so that is reported rather than lost).
+    """
+    label = re.sub(r"[^0-9A-Za-z_-]", "_", pick.replace(" ", ""))
+    if len(label) > _LONGEST_PICK_LABEL:
+        numbers = re.findall(r"[0-9]+", pick)
+        label = f"{numbers[0]}-{numbers[-1]}_selected" if numbers else "selected"
+    seed_part = "" if seed is None else f"_seed{seed}"
+    return f"schedules{seed_part}_{label}.csv"
+
+
+def check_output_free(path: str | Path) -> None:
+    """Raise InputError if the file already exists. Called before a long search, so the
+    organiser is told at once rather than after waiting."""
+    path = Path(path)
+    if path.exists():
+        raise InputError([Issue(Severity.ERROR, _EXISTS.format(path=path))])
+
+
 def write_schedules(
     path: str | Path, schedules: Sequence[Schedule], performance_names: Mapping[str, str]
 ) -> None:
-    """Write schedules side by side to a CSV file. Raises InputError if it cannot be written."""
-    write_text(path, format_schedules(schedules, performance_names))
+    """Write schedules side by side to a CSV file (decision D43).
 
-
-def write_text(path: str | Path, text: str) -> None:
-    """Write a text file. UTF-8 with a byte-order mark, so Excel shows accents correctly
-    (the readers above accept the mark)."""
+    Creates the folder if it is missing and never overwrites: an existing file is refused.
+    Raises InputError if the file cannot be written.
+    """
+    text = format_schedules(schedules, performance_names)
     path = Path(path)
     try:
-        with open(path, "w", encoding="utf-8-sig", newline="") as handle:
+        path.parent.mkdir(parents=True, exist_ok=True)
+    except OSError as problem:
+        raise InputError(
+            [Issue(Severity.ERROR, f"Could not write {path}: the folder could not be created ({problem})")]
+        ) from None
+    write_text(path, text, exclusive=True)
+
+
+def write_text(path: str | Path, text: str, *, exclusive: bool = False) -> None:
+    """Write a text file. UTF-8 with a byte-order mark, so Excel shows accents correctly
+    (the readers above accept the mark). With `exclusive`, an existing file is refused
+    instead of being overwritten."""
+    path = Path(path)
+    try:
+        with open(path, "x" if exclusive else "w", encoding="utf-8-sig", newline="") as handle:
             handle.write(text)
+    except FileExistsError:
+        raise InputError([Issue(Severity.ERROR, _EXISTS.format(path=path))]) from None
     except OSError as problem:
         raise InputError([Issue(Severity.ERROR, f"Could not write {path}: {problem}")]) from None

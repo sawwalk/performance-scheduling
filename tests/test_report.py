@@ -4,6 +4,7 @@ import csv
 
 from performance_scheduling.models import (
     BREAK,
+    FinderStatus,
     Issue,
     PerformerData,
     Schedule,
@@ -12,11 +13,16 @@ from performance_scheduling.models import (
 )
 from performance_scheduling.report import (
     describe_pair,
+    format_availability,
     format_check,
     format_issues,
+    format_larger_gap_prompt,
+    format_missing,
+    format_no_schedules,
     format_overview,
     format_totals,
     format_violations_csv,
+    format_written,
     group_violations,
 )
 from performance_scheduling.validator import check_schedule
@@ -223,3 +229,58 @@ def test_violations_csv_stays_one_row_per_performer_even_when_the_text_groups_th
 def test_violations_csv_for_a_valid_schedule_is_just_the_header():
     text = format_violations_csv([check("jazz", "ballet", "tap")], DATA)
     assert len(text.splitlines()) == 1
+
+
+# ---------------------------------------------------------------- the schedule finder
+
+
+def test_written_sentence_uses_singular_and_plural():
+    assert format_written(5, "1-5", "out/s.csv") == "Wrote 5 schedules (numbers 1-5) to out/s.csv."
+    assert format_written(1, "7", "s.csv") == "Wrote 1 schedule (number 7) to s.csv."
+
+
+def test_availability_says_more_exist_or_how_many_there_are_or_that_it_was_stopped():
+    assert format_availability(True, total=None, produced=6, last_number=5) == (
+        "More schedules exist after number 5."
+    )
+    assert format_availability(False, total=8, produced=8, last_number=8) == (
+        "There are 8 schedules in all."
+    )
+    assert format_availability(False, total=1, produced=1, last_number=1) == (
+        "There is 1 schedule in all."
+    )
+    assert format_availability(None, total=None, produced=1200, last_number=5) == (
+        "The search stopped at the time limit after 1200 schedules, so more may exist."
+    )
+
+
+def test_missing_numbers_are_explained_differently_when_the_search_finished_or_was_stopped():
+    assert format_missing("9-12", 4, stopped=False, total=8) == (
+        "Schedules 9-12 do not exist: there are only 8."
+    )
+    assert format_missing("9", 1, stopped=False, total=8) == (
+        "Schedule 9 does not exist: there are only 8."
+    )
+    assert format_missing("5000000", 1, stopped=True, total=None) == (
+        "Schedule 5000000 does not appear to have been reached before the time limit."
+    )
+
+
+def test_the_larger_gap_prompt_is_a_plain_invitation():
+    assert format_larger_gap_prompt(1) == (
+        "Schedules found with a gap of 1. To see whether everyone could have a longer rest, "
+        "run again with a gap of 2."
+    )
+
+
+def test_no_schedules_text_gives_the_reasons():
+    reasons = [Issue(Severity.ERROR, "first reason"), Issue(Severity.ERROR, "second reason")]
+    assert format_no_schedules(FinderStatus.EXHAUSTED, reasons).splitlines() == [
+        "No schedule exists.",
+        "  - first reason",
+        "  - second reason",
+    ]
+    stopped = [Issue(Severity.WARNING, "The time limit of 30 seconds was reached.")]
+    assert format_no_schedules(FinderStatus.STOPPED, stopped).splitlines()[0] == (
+        "No schedule was found before the time limit."
+    )

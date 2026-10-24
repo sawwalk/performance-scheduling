@@ -41,6 +41,12 @@ The loader is tested against every performer file here (`tests/test_io.py`): the
 | `tiny_feasible_schedule_broken.csv` | Structural errors: a performance missing, one repeated, and an unknown name (`Salsa (Open)`) | Structural errors reported; spacing not checked |
 | `tiny_feasible_schedules_all8.csv` | All 8 valid schedules side by side (the order of the columns is not significant) | 8 results, all VALID; also an example of the side-by-side format |
 
+## Fixed-positions files (for the finder), for `tiny_feasible.csv`
+
+| File | Purpose | What is known |
+|---|---|---|
+| `tiny_feasible_pins.csv` | Pins `Bollywood (Open)` to slot 1. Used by the README example and the finder tests | Truth (brute force, checked in `tests/test_solver.py`): at k=1 there are 2 schedules with 0 breaks and 28 with 1 break |
+
 ## Ideas for later datasets
 
 - A show with breaks pre-pinned at the start and end, with a matching fixed-positions file

@@ -2,8 +2,20 @@
 
 import pytest
 
-from performance_scheduling.models import InputError, Severity
-from performance_scheduling.selection import Selection, parse_selection
+from performance_scheduling.models import (
+    FinderResult,
+    FinderStatus,
+    InputError,
+    Schedule,
+    Severity,
+)
+from performance_scheduling.selection import (
+    Selection,
+    apply_selection,
+    parse_selection,
+    schedules_to_request,
+    selection_from_numbers,
+)
 
 # ---------------------------------------------------------------- what is accepted
 
@@ -151,3 +163,83 @@ def test_a_huge_range_is_refused_instantly_without_building_a_list():
 
 def test_all_is_not_checked_against_the_count_limit():
     assert parse_selection("all", max_count=100).select_all
+
+
+# ---------------------------------------------------------------- choosing from the finder's list
+
+
+def listed(n: int, status: FinderStatus) -> FinderResult:
+    """A finder result holding schedules named schedule_1 ... schedule_n."""
+    schedules = tuple(Schedule(name=f"schedule_{i}", slots=(f"p{i}",)) for i in range(1, n + 1))
+    return FinderResult(status, schedules)
+
+
+def names(picked) -> list[str]:
+    return [s.name for s in picked.schedules]
+
+
+def test_selection_from_numbers_joins_touching_numbers_and_ignores_repeats():
+    assert str(selection_from_numbers([9, 1, 2, 2, 3])) == "1-3,9"
+    assert selection_from_numbers([]).ranges == ()
+
+
+def test_one_extra_schedule_is_requested_to_learn_whether_more_exist():
+    assert schedules_to_request(parse_selection("1-5"), limit=100) == 6
+    assert schedules_to_request(parse_selection("1,4,9"), limit=100) == 10
+    assert schedules_to_request(parse_selection("all"), limit=100) == 101
+
+
+def test_a_range_is_picked_and_the_extra_schedule_shows_that_more_exist():
+    picked = apply_selection(listed(6, FinderStatus.FOUND), parse_selection("1-5"), limit=100)
+    assert names(picked) == [f"schedule_{n}" for n in range(1, 6)]
+    assert str(picked.numbers) == "1-5"
+    assert picked.missing.ranges == ()
+    assert picked.more_exist is True and picked.total is None
+
+
+def test_only_the_chosen_numbers_are_kept_and_the_rest_discarded():
+    picked = apply_selection(listed(10, FinderStatus.FOUND), parse_selection("1,4,9"), limit=100)
+    assert names(picked) == ["schedule_1", "schedule_4", "schedule_9"]
+    assert str(picked.numbers) == "1,4,9"
+
+
+def test_all_takes_the_first_limit_schedules_and_the_extra_one_shows_more_exist():
+    picked = apply_selection(listed(4, FinderStatus.FOUND), parse_selection("all"), limit=3)
+    assert names(picked) == ["schedule_1", "schedule_2", "schedule_3"]
+    assert picked.more_exist is True and picked.missing.ranges == ()
+
+
+def test_all_on_a_short_list_takes_everything_and_says_it_is_all():
+    picked = apply_selection(listed(8, FinderStatus.EXHAUSTED), parse_selection("all"), limit=100)
+    assert len(picked.schedules) == 8
+    assert picked.more_exist is False and picked.total == 8
+
+
+def test_numbers_beyond_the_end_are_listed_as_missing_when_the_search_finished():
+    picked = apply_selection(listed(8, FinderStatus.EXHAUSTED), parse_selection("6-12,20"), limit=100)
+    assert names(picked) == ["schedule_6", "schedule_7", "schedule_8"]
+    assert str(picked.missing) == "9-12,20"
+    assert picked.more_exist is False and picked.total == 8
+
+
+def test_a_range_that_starts_beyond_the_end_is_all_missing():
+    picked = apply_selection(listed(8, FinderStatus.EXHAUSTED), parse_selection("20-22"), limit=100)
+    assert picked.schedules == () and str(picked.missing) == "20-22"
+    assert str(picked.numbers) == ""
+
+
+def test_a_stopped_search_does_not_claim_to_know_whether_more_exist():
+    picked = apply_selection(listed(3, FinderStatus.STOPPED), parse_selection("2-5"), limit=100)
+    assert names(picked) == ["schedule_2", "schedule_3"]
+    assert str(picked.missing) == "4-5"
+    assert picked.more_exist is None and picked.total is None
+
+
+def test_an_empty_result_picks_nothing():
+    picked = apply_selection(listed(0, FinderStatus.EXHAUSTED), parse_selection("1-5"), limit=100)
+    assert picked.schedules == () and str(picked.missing) == "1-5" and picked.total == 0
+
+
+def test_a_huge_single_number_is_handled_without_building_a_huge_list():
+    picked = apply_selection(listed(3, FinderStatus.STOPPED), parse_selection("5000000"), limit=100)
+    assert picked.schedules == () and str(picked.missing) == "5000000"

@@ -14,7 +14,7 @@ from pathlib import Path
 import pytest
 
 from performance_scheduling import solver
-from performance_scheduling.io import load_performers, load_schedules
+from performance_scheduling.io import load_performers, load_pins, load_schedules
 from performance_scheduling.models import (
     BREAK,
     FinderStatus,
@@ -203,6 +203,17 @@ def test_pinned_items_are_kept_and_the_count_matches_brute_force():
     assert result.status is FinderStatus.EXHAUSTED
     assert set(slot_lists(result)) == expected
     assert all(s.slots[0] == "bollywood (open)" and s.slots[6] == BREAK for s in result.schedules)
+
+
+@needs_ortools
+@pytest.mark.parametrize(("breaks", "expected"), [(0, 2), (1, 28)])
+def test_the_example_pins_file_gives_the_counts_documented_in_test_datasets(breaks, expected):
+    data = example("tiny_feasible.csv")
+    pins = load_pins(EXAMPLES / "tiny_feasible_pins.csv").pins
+    result = find_schedules(data, gap=1, breaks=breaks, pins=pins, count=1000)
+    by_hand = {s for s in brute_force(data, 1, breaks) if s[0] == "bollywood (open)"}
+    assert len(result.schedules) == expected
+    assert set(slot_lists(result)) == by_hand
 
 
 @needs_ortools

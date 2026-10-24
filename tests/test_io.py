@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from performance_scheduling.io import (
+    check_output_free,
     clean_text,
     format_schedules,
     load_performers,
@@ -14,6 +15,7 @@ from performance_scheduling.io import (
     parse_performers,
     parse_pins,
     parse_schedules,
+    schedules_file_name,
     write_schedules,
     write_text,
 )
@@ -608,7 +610,67 @@ def test_write_schedules_makes_a_file_the_checker_can_read_and_accept(tmp_path):
     assert all(check.valid for check in check_schedules(performers, again.schedules, gap=1))
 
 
-def test_write_schedules_to_a_missing_folder_is_a_clear_error(tmp_path):
+def test_write_schedules_creates_a_missing_folder(tmp_path):
     schedule = Schedule(name="s", slots=("jazz",))
+    path = tmp_path / "not" / "there" / "yet" / "out.csv"
+    write_schedules(path, [schedule], NAMES)
+    assert path.read_text(encoding="utf-8-sig") == "position,s\n1,Jazz (Open)\n"
+
+
+def test_write_schedules_never_overwrites_an_existing_file(tmp_path):
+    path = tmp_path / "out.csv"
+    path.write_text("precious", encoding="utf-8")
+    with pytest.raises(InputError, match="already exists"):
+        write_schedules(path, [Schedule(name="s", slots=("jazz",))], NAMES)
+    assert path.read_text(encoding="utf-8") == "precious"
+
+
+def test_a_folder_that_cannot_be_created_is_a_clear_error(tmp_path):
+    blocker = tmp_path / "a_file"
+    blocker.write_text("x")
     with pytest.raises(InputError, match="Could not write"):
-        write_schedules(tmp_path / "missing" / "out.csv", [schedule], NAMES)
+        write_schedules(blocker / "sub" / "out.csv", [Schedule(name="s", slots=("jazz",))], NAMES)
+
+
+def test_write_text_exclusive_refuses_an_existing_file_but_the_default_still_overwrites(tmp_path):
+    path = tmp_path / "report.csv"
+    write_text(path, "one")
+    write_text(path, "two")  # the checker's report file is meant to be overwritten
+    assert path.read_text(encoding="utf-8-sig") == "two"
+    with pytest.raises(InputError, match="already exists"):
+        write_text(path, "three", exclusive=True)
+
+
+def test_check_output_free(tmp_path):
+    path = tmp_path / "out.csv"
+    check_output_free(path)  # fine: nothing there
+    path.write_text("x")
+    with pytest.raises(InputError, match="never written over an existing file"):
+        check_output_free(path)
+
+
+@pytest.mark.parametrize(
+    ("seed", "pick", "expected"),
+    [
+        (None, "1-5", "schedules_1-5.csv"),
+        (42, "6-10", "schedules_seed42_6-10.csv"),
+        (None, "1,4,9", "schedules_1_4_9.csv"),
+        (None, "1-3,7,20-22", "schedules_1-3_7_20-22.csv"),
+        (None, "all", "schedules_all.csv"),
+        (-5, "all", "schedules_seed-5_all.csv"),
+        (None, " 1 - 3 , 7 ", "schedules_1-3_7.csv"),
+    ],
+)
+def test_schedules_file_names_carry_the_seed_and_the_pick(seed, pick, expected):
+    assert schedules_file_name(seed, pick) == expected
+
+
+def test_a_very_long_pick_is_shortened_to_its_first_and_last_number():
+    pick = ",".join(str(n) for n in range(1, 200, 2))
+    name = schedules_file_name(7, pick)
+    assert name == "schedules_seed7_1-199_selected.csv"
+    assert len(name) < 60
+
+
+def test_file_names_hold_only_safe_characters():
+    assert schedules_file_name(None, "a/b:c*") == "schedules_a_b_c_.csv"

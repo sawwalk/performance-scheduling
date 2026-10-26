@@ -30,13 +30,16 @@ Reading and cleaning input files.
 - `PERFORMANCE_SIMILARITY = 0.92`
 - `clean_text(text: str) -> str` - Tidy text for display: standard Unicode form, no stray or repeated spaces.
 - `make_key(text: str) -> str` - The cleaned, lower-case form used for all matching (see models.py).
+- `decode_text(raw: bytes, name: str) -> str` - Turn the bytes of a text file into text: UTF-8, with an Excel byte-order mark accepted.
 - `read_text(path: str | Path) -> str` - Read a text file as UTF-8 (a byte-order mark added by Excel is accepted).
+- `performer_file_columns(text: str) -> list[str]` - The column names in the header of a performer CSV, to fill the column pickers.
 - `parse_performers(text: str, id_column: str | None = None, performance_column: str | None = None) -> PerformerLoad` - Clean performer CSV text into a PerformerLoad.
 - `load_performers(path: str | Path, id_column: str | None = None, performance_column: str | None = None) -> PerformerLoad` - Read a performer CSV file and clean it.
 - `parse_schedules(text: str) -> ScheduleLoad` - Read schedule CSV text: a `position` column and one column per schedule.
 - `load_schedules(path: str | Path) -> ScheduleLoad` - Read a schedule file (one or several schedules side by side).
 - `parse_pins(text: str) -> PinLoad` - Read fixed-positions CSV text: a `position` column and an `item` column.
 - `load_pins(path: str | Path) -> PinLoad` - Read a fixed-positions file.
+- `schedule_rows(schedules: Sequence[Schedule], performance_names: Mapping[str, str]) -> list[list[str]]` - The table of schedules as rows of text: a heading row, then one row per slot.
 - `format_schedules(schedules: Sequence[Schedule], performance_names: Mapping[str, str]) -> str` - CSV text for one or several schedules side by side (the format of docs/input-data.md).
 - `schedules_file_name(seed: int | None, pick: str) -> str` - The name of a schedules file (decision D43): the seed, if any, and the pick.
 - `check_output_free(path: str | Path) -> None` - Raise InputError if the file already exists.
@@ -57,6 +60,7 @@ Reading a typed choice of numbers such as "1,4,9", "1-3, 7" or "all".
 - `parse_selection(text: str, *, maximum: int | None = None, max_count: int | None = None) -> Selection` - Read a typed choice.
 - `selection_from_numbers(numbers: Iterable[int]) -> Selection` - A Selection of exactly these numbers, written as joined ranges (empty if none).
 - `schedules_to_request(selection: Selection, limit: int) -> int` - How many schedules to ask the finder for: up to the highest one chosen, plus one more.
+- `next_pick(selection: Selection, limit: int, last_number: int) -> str` - The pick that asks for the next batch (decision D44), written like "6-10" or "6".
 - `Picked(schedules: tuple[Schedule, ...], numbers: Selection, missing: Selection, more_exist: bool | None, total: int | None)` - What a choice picks out of the finder's list (see apply_selection).
 - `apply_selection(result: FinderResult, selection: Selection, limit: int) -> Picked` - Pick the chosen schedules out of a finder result (decisions D17, D19, D33).
 
@@ -70,13 +74,16 @@ Turning check results into words for the organiser.
 - `describe_pair(pair: PairProblem, data: PerformerData) -> str` - One sentence about one pair of performances that are too close together.
 - `format_issues(heading: str, issues: Sequence[Issue], limit: int = 20) -> str` - A heading followed by one indented line per issue (shortened if there are many).
 - `format_check(check: ScheduleCheck, data: PerformerData) -> str` - The full write-up for one schedule.
+- `overview_rows(checks: Sequence[ScheduleCheck]) -> list[tuple[str, ...]]` - The overview table as rows of text: a heading row, then one row per schedule.
 - `format_overview(checks: Sequence[ScheduleCheck]) -> str` - A table with one row per schedule, so several can be compared at a glance.
 - `format_totals(checks: Sequence[ScheduleCheck]) -> str` - One closing sentence for a run that checked several schedules.
 - `format_violations_csv(checks: Sequence[ScheduleCheck], data: PerformerData) -> str` - CSV text with one row per violation, using the names from the performer file.
+- `format_found(count: int, numbers: str) -> str` - One sentence saying how many schedules were found, for the page (no file is written).
 - `format_written(count: int, numbers: str, path: str) -> str` - One sentence saying what was written and where.
 - `format_availability(more_exist: bool | None, *, total: int | None, produced: int, last_number: int) -> str` - Whether the finder's list goes on: more exist, this is all of it, or the search was stopped.
 - `format_missing(numbers: str, count: int, *, stopped: bool, total: int | None) -> str` - Schedule numbers that were asked for but are not in the list.
 - `format_larger_gap_prompt(gap: int) -> str` - A plain invitation to try a longer rest next time (decisions D14, D16).
+- `no_schedules_heading(status: FinderStatus) -> str` - The heading of the no-schedule box: none exist (the search finished) or the time ran out.
 - `format_no_schedules(status: FinderStatus, explanation: Sequence[Issue]) -> str` - The heading and the reasons when the finder produced no schedule at all.
 
 ## validator.py
@@ -112,3 +119,4 @@ Command-line entry points.
 - `DEFAULT_OUT = 'output'`
 - `checker_main(argv: Sequence[str] | None = None) -> int` - Run the schedule checker.
 - `finder_main(argv: Sequence[str] | None = None) -> int` - Run the schedule finder.
+

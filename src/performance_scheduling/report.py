@@ -151,8 +151,14 @@ def format_check(check: ScheduleCheck, data: PerformerData) -> str:
     return "\n".join(lines)
 
 
-def format_overview(checks: Sequence[ScheduleCheck]) -> str:
-    """A table with one row per schedule, so several can be compared at a glance."""
+def overview_rows(checks: Sequence[ScheduleCheck]) -> list[tuple[str, ...]]:
+    """The overview table as rows of text: a heading row, then one row per schedule.
+
+    "Problems" counts the structural problems if there are any; otherwise it counts the
+    pairs of performances that are too close together (not the individual violations).
+    format_overview lines these rows up as text and the page shows the same rows, so the two
+    cannot disagree.
+    """
     rows = [("Schedule", "Result", "Slots", "Breaks", "Problems", "Tightest gap")]
     for check in checks:
         rows.append(
@@ -165,6 +171,12 @@ def format_overview(checks: Sequence[ScheduleCheck]) -> str:
                 "-" if check.smallest_gap is None else str(check.smallest_gap),
             )
         )
+    return rows
+
+
+def format_overview(checks: Sequence[ScheduleCheck]) -> str:
+    """A table with one row per schedule, so several can be compared at a glance."""
+    rows = overview_rows(checks)
     widths = [max(len(row[column]) for row in rows) for column in range(len(rows[0]))]
     return "\n".join(
         "  ".join(cell.ljust(width) for cell, width in zip(row, widths)).rstrip() for row in rows
@@ -221,6 +233,18 @@ def format_violations_csv(checks: Sequence[ScheduleCheck], data: PerformerData) 
 # selection.py sit side by side in the layers and may not import each other.
 
 
+def format_found(count: int, numbers: str) -> str:
+    """One sentence saying how many schedules were found, for the page (no file is written).
+
+    `numbers` is e.g. "1-5" or "1,4,9". Raises ValueError if `count` is below 1, because
+    "Found 0 schedules" would be a mistake: the no-schedule box is shown instead.
+    """
+    if count < 1:
+        raise ValueError("there are no schedules to report")
+    label = "number" if count == 1 else "numbers"
+    return f"Found {_plural(count, 'schedule')} ({label} {numbers})."
+
+
 def format_written(count: int, numbers: str, path: str) -> str:
     """One sentence saying what was written and where. `numbers` is e.g. "1-5" or "1,4,9"."""
     label = "number" if count == 1 else "numbers"
@@ -257,11 +281,18 @@ def format_larger_gap_prompt(gap: int) -> str:
     )
 
 
+def no_schedules_heading(status: FinderStatus) -> str:
+    """The heading of the no-schedule box: none exist (the search finished) or the time ran out.
+
+    Only EXHAUSTED means the search finished; any other status reads as the time limit.
+    """
+    if status is FinderStatus.EXHAUSTED:
+        return "No schedule exists."
+    return "No schedule was found before the time limit."
+
+
 def format_no_schedules(status: FinderStatus, explanation: Sequence[Issue]) -> str:
     """The heading and the reasons when the finder produced no schedule at all."""
-    heading = (
-        "No schedule exists."
-        if status is FinderStatus.EXHAUSTED
-        else "No schedule was found before the time limit."
+    return "\n".join(
+        [no_schedules_heading(status), *(f"  - {issue.message}" for issue in explanation)]
     )
-    return "\n".join([heading, *(f"  - {issue.message}" for issue in explanation)])

@@ -66,3 +66,5 @@ Design decisions:
 
 **Things to learn from this project:**
 - what pytest is and how it connects to pyproject.toml and tests folder. Is the test configuration specified in pyproject.toml?
+
+tar -a -c -f C:\Users\samww\Documents\personal_projects\performance-scheduling.zip --exclude=MY_README.md --exclude=.vscode --exclude=.venv --exclude=.git --exclude=data/private --exclude=__pycache__ --exclude=.pytest_cache --exclude=.ruff_cache * 

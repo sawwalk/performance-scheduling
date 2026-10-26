@@ -166,6 +166,17 @@ def schedules_to_request(selection: Selection, limit: int) -> int:
     return highest + 1
 
 
+def next_pick(selection: Selection, limit: int, last_number: int) -> str:
+    """The pick that asks for the next batch (decision D44), written like "6-10" or "6".
+
+    The next batch is as big as this one: as many schedules as were chosen, or `limit` for
+    "all". It starts just after `last_number`, the highest number written so far. The text
+    can be given straight to parse_selection or to the command's --pick.
+    """
+    size = limit if selection.select_all else selection.count or 1
+    return f"{last_number + 1}-{last_number + size}" if size > 1 else str(last_number + 1)
+
+
 @dataclass(frozen=True)
 class Picked:
     """What a choice picks out of the finder's list (see apply_selection)."""

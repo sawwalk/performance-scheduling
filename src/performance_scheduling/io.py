@@ -10,6 +10,7 @@ Schedules can also be written. The performer loader is split in three so each pa
 easy to test (the other readers follow the same pattern):
 
 * make_key / clean_text   tidy one piece of text
+* decode_text             turns the bytes of a file (or an upload) into text
 * parse_performers        works on text already in memory (no files; the UI can use it
                           for an uploaded file)
 * load_performers         reads the file, then calls parse_performers
@@ -71,26 +72,39 @@ def make_key(text: str) -> str:
 # ---------------------------------------------------------------- reading files
 
 
-def read_text(path: str | Path) -> str:
-    """Read a text file as UTF-8 (a byte-order mark added by Excel is accepted)."""
-    path = Path(path)
+def decode_text(raw: bytes, name: str) -> str:
+    """Turn the bytes of a text file into text: UTF-8, with an Excel byte-order mark accepted.
+
+    This is the one place where bytes become text, so a file read from disk (read_text) and a
+    file uploaded to the page give the same text and the same message. Line endings are left
+    exactly as they are. `name` is the file's name; it is only used in the message when the
+    bytes are not UTF-8. Raises InputError in that case.
+    """
     try:
-        with open(path, encoding="utf-8-sig", newline="") as handle:
-            return handle.read()
-    except FileNotFoundError:
-        raise InputError([Issue(Severity.ERROR, f"File not found: {path}")]) from None
+        return raw.decode("utf-8-sig")
     except UnicodeDecodeError:
         raise InputError(
             [
                 Issue(
                     Severity.ERROR,
-                    f"{path.name} could not be read as UTF-8 text. "
+                    f"{name} could not be read as UTF-8 text. "
                     'In Excel, use "Save As" and choose "CSV UTF-8".',
                 )
             ]
         ) from None
+
+
+def read_text(path: str | Path) -> str:
+    """Read a text file as UTF-8 (a byte-order mark added by Excel is accepted)."""
+    path = Path(path)
+    try:
+        with open(path, "rb") as handle:
+            raw = handle.read()
+    except FileNotFoundError:
+        raise InputError([Issue(Severity.ERROR, f"File not found: {path}")]) from None
     except OSError as problem:
         raise InputError([Issue(Severity.ERROR, f"Could not read {path}: {problem}")]) from None
+    return decode_text(raw, path.name)
 
 
 def _detect_delimiter(text: str) -> str:
@@ -101,14 +115,36 @@ def _detect_delimiter(text: str) -> str:
     return best if counts[best] > 0 else ","
 
 
+def _header_names(header: Sequence[str]) -> list[str]:
+    """The tidied column names of a header row, without the empty columns Excel sometimes adds."""
+    names = [clean_text(cell) for cell in header]
+    while names and not names[-1]:
+        names.pop()
+    return names
+
+
+def performer_file_columns(text: str) -> list[str]:
+    """The column names in the header of a performer CSV, to fill the column pickers.
+
+    It finds the separator and tidies the names exactly as the performer loader does (the
+    loader's own header rules are shared, see _header_names), so every name offered here is
+    one the loader accepts. The header is the first line that is not blank. Returns an empty
+    list if there is no usable header; the loader gives the organiser the explanation.
+    """
+    try:
+        for row in csv.reader(StringIO(text), delimiter=_detect_delimiter(text)):
+            if any(cell.strip() for cell in row):
+                return _header_names(row)
+    except csv.Error:
+        pass
+    return []
+
+
 def _resolve_columns(
     header: Sequence[str], id_column: str | None, performance_column: str | None
 ) -> tuple[int, int, list[Issue]]:
     """Work out which columns hold the performer id and the performance."""
-    header = list(header)
-    while header and not clean_text(header[-1]):  # Excel sometimes adds empty trailing columns
-        header.pop()
-    names = [clean_text(cell) for cell in header]
+    names = _header_names(header)
     listing = ", ".join(f'"{name}"' for name in names)
 
     if (id_column is None) != (performance_column is None):
@@ -565,14 +601,18 @@ def load_pins(path: str | Path) -> PinLoad:
 # ---------------------------------------------------------------- schedule writer
 
 
-def format_schedules(schedules: Sequence[Schedule], performance_names: Mapping[str, str]) -> str:
-    """CSV text for one or several schedules side by side (the format of docs/input-data.md).
+def schedule_rows(
+    schedules: Sequence[Schedule], performance_names: Mapping[str, str]
+) -> list[list[str]]:
+    """The table of schedules as rows of text: a heading row, then one row per slot.
 
-    The first column is `position`; each schedule is one column, headed by its name.
-    Performances are written with the spelling from `performance_names` (the performer
-    file's display names), falling back to the spelling the schedule came from, then to the
-    key itself. Breaks are written as BREAK. The text can be read back by parse_schedules,
-    so the finder's output can be given straight to the schedule checker.
+    The first row is `position` followed by each schedule's name; every later row is a slot
+    number and the item in that slot for each schedule. format_schedules writes these rows as
+    CSV and the page shows the same rows, so the two cannot differ.
+
+    Performances are shown with the spelling from `performance_names` (the performer file's
+    display names), falling back to the spelling the schedule came from, then to the key
+    itself. Breaks are shown as BREAK.
 
     Raises ValueError for a request the program should never make: no schedules, schedules
     of different lengths, or names that could not be told apart in a file (empty, "position",
@@ -598,11 +638,22 @@ def format_schedules(schedules: Sequence[Schedule], performance_names: Mapping[s
             return BREAK
         return performance_names.get(slot) or schedule.display_names.get(slot) or slot
 
-    buffer = StringIO()
-    writer = csv.writer(buffer, lineterminator="\n")
-    writer.writerow(("position", *(schedule.name for schedule in schedules)))
+    rows = [["position", *(schedule.name for schedule in schedules)]]
     for index in range(length):
-        writer.writerow((index + 1, *(shown(schedule, schedule.slots[index]) for schedule in schedules)))
+        rows.append([str(index + 1), *(shown(schedule, schedule.slots[index]) for schedule in schedules)])
+    return rows
+
+
+def format_schedules(schedules: Sequence[Schedule], performance_names: Mapping[str, str]) -> str:
+    """CSV text for one or several schedules side by side (the format of docs/input-data.md).
+
+    The first column is `position`; each schedule is one column, headed by its name. The rows
+    come from schedule_rows, which also explains the spelling used and when ValueError is
+    raised. The text can be read back by parse_schedules, so the finder's output can be given
+    straight to the schedule checker.
+    """
+    buffer = StringIO()
+    csv.writer(buffer, lineterminator="\n").writerows(schedule_rows(schedules, performance_names))
     return buffer.getvalue()
 
 

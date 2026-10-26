@@ -48,4 +48,5 @@ Each step ends with tests passing and a commit.
 
 ## Phase 5: Interface and polish
 - [ ] `ui-design.md`, then the simple UI
+- [x] U1, core additions the UI needs: `decode_text`, `performer_file_columns`, `schedule_rows`, `next_pick`, `format_found`, `no_schedules_heading`, `overview_rows`; `tests/test_ui_helpers.py` (D50 to D52)
 - [ ] README with worked examples, `user-guide.md`

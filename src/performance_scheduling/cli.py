@@ -49,6 +49,7 @@ from performance_scheduling.report import (
 )
 from performance_scheduling.selection import (
     apply_selection,
+    next_pick,
     parse_selection,
     schedules_to_request,
 )
@@ -327,7 +328,7 @@ def _quoted(argument: str) -> str:
     return f'"{argument}"' if (not argument or any(c.isspace() for c in argument)) else argument
 
 
-def _next_batch_command(args: argparse.Namespace, next_pick: str) -> str:
+def _next_batch_command(args: argparse.Namespace, pick: str) -> str:
     """The exact command for the next batch (decision D44): the same settings, a new --pick."""
     parts = [
         "schedule-finder",
@@ -337,7 +338,7 @@ def _next_batch_command(args: argparse.Namespace, next_pick: str) -> str:
     ]  # fmt: skip
     if args.fixed:
         parts += ["--fixed", args.fixed]
-    parts += ["--pick", next_pick]
+    parts += ["--pick", pick]
     if args.limit != DEFAULT_LIMIT:
         parts += ["--limit", str(args.limit)]
     if args.seed is not None:
@@ -458,11 +459,11 @@ def finder_main(argv: Sequence[str] | None = None) -> int:
             )
         )
     if picked.more_exist:
-        size = args.limit if selection.select_all else selection.count or 1
-        next_pick = f"{last + 1}-{last + size}" if size > 1 else str(last + 1)
+        next_numbers = next_pick(selection, args.limit, last)
+        size = parse_selection(next_numbers).count or 1  # how many schedules that pick holds
         print()
         print(f"To write the next {_plural(size, 'schedule')}, run:")
-        print(f"  {_next_batch_command(args, next_pick)}")
+        print(f"  {_next_batch_command(args, next_numbers)}")
         if selection.select_all:
             print(f"(Each run writes at most {args.limit}; change that with --limit.)")
     print()

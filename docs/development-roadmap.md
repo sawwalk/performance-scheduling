@@ -49,4 +49,5 @@ Each step ends with tests passing and a commit.
 ## Phase 5: Interface and polish
 - [ ] `ui-design.md`, then the simple UI
 - [x] U1, core additions the UI needs: `decode_text`, `performer_file_columns`, `schedule_rows`, `next_pick`, `format_found`, `no_schedules_heading`, `overview_rows`; `tests/test_ui_helpers.py` (D50 to D52)
+- [x] U2, app skeleton and the "Your show" section: `app.py`, `.streamlit/config.toml`, `tests/test_app.py` (D48, D49, D53, D54; Q16 and Q17 answered)
 - [ ] README with worked examples, `user-guide.md`

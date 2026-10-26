@@ -1,0 +1,20 @@
+# Settings for the page (docs/ui-design.md sections 3 and 8; decisions D49 and D53).
+# Streamlit reads this file from the folder it is started in, so start the page from
+# the project folder.
+
+[browser]
+# Nothing about how the page is used is sent anywhere (D49). Streamlit's default is on.
+gatherUsageStats = false
+
+[client]
+# Organisers never see a traceback (docs/ui-design.md section 3).
+showErrorDetails = "none"
+# Hide the "Deploy" button: the page runs on one computer and is not for hosting (Q16).
+toolbarMode = "minimal"
+
+[server]
+# Only this computer can open the page (Q16, answer (a)). To let others on the network
+# use it, or to host it, that is a separate decision and needs data-privacy.md first.
+address = "localhost"
+# Megabytes. The performer file is small; this keeps a wrong file from being swallowed.
+maxUploadSize = 5

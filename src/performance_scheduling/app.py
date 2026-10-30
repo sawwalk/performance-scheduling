@@ -16,16 +16,35 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+import pandas as pd
 import streamlit as st
 
 from performance_scheduling.io import (
     decode_text,
     parse_performers,
+    parse_schedules,
     performer_file_columns,
     read_text,
 )
-from performance_scheduling.models import InputError, Issue, PerformerLoad
-from performance_scheduling.report import MAX_ISSUES_SHOWN, format_issues
+from performance_scheduling.models import (
+    InputError,
+    Issue,
+    PerformerData,
+    PerformerLoad,
+    ScheduleCheck,
+    ScheduleLoad,
+)
+from performance_scheduling.report import (
+    MAX_ISSUES_SHOWN,
+    PairProblem,
+    format_check,
+    format_issues,
+    format_totals,
+    format_violations_csv,
+    group_violations,
+    overview_rows,
+)
+from performance_scheduling.validator import check_schedules
 
 # The example file offered for download. It is found relative to the project folder,
 # so the page works from wherever the folder is copied; if it is missing, the link
@@ -40,6 +59,22 @@ UNEXPECTED_PROBLEM = (
 ID_QUESTION = "Which column holds the performer's name or id?"
 PERFORMANCE_QUESTION = "Which column holds the performance?"
 CHOOSE_COLUMNS = "Choose the two columns to continue."
+
+UNEXPECTED_CHECK_PROBLEM = (
+    "Something unexpected went wrong while checking this schedule, so no result is shown. "
+    "Ask whoever set this up."
+)
+
+SCHEDULE_FILE_LABEL = "Schedule file (CSV): one running order, or several side by side"
+GAP_LABEL = "Rest between a performer's performances (slots)"
+GAP_HELP = "1 means never back to back."
+DOWNLOAD_PROBLEMS_LABEL = "Download the problems (CSV)"
+
+# With more schedules than this, valid ones appear only in the overview table. This is the
+# command's rule (decision D28, `cli.FULL_DETAIL_UP_TO`) and its sentence, repeated here
+# because the page may not import `cli`.
+FULL_DETAIL_UP_TO = 10
+VALID_LISTED_IN_TABLE = "Valid schedules are listed in the table only."
 
 # The two column pickers' widget keys (forgotten whenever a new file arrives).
 _PICKER_KEYS = ("id_column", "performance_column")
@@ -105,16 +140,16 @@ def _issue_list(heading: str, issues: tuple[Issue, ...], limit: int) -> tuple[st
     return heading_line, "\n".join(f"- {_plain(line.strip())}" for line in lines)
 
 
-def _show_problem(issues: tuple[Issue, ...]) -> None:
+def _show_problem(issues: tuple[Issue, ...], heading: str = "This file cannot be used") -> None:
     """A red box listing every message, each with its row number where it has one."""
-    heading, items = _issue_list("This file cannot be used", issues, max(len(issues), 1))
+    heading, items = _issue_list(heading, issues, max(len(issues), 1))
     st.error(f"**{heading}**\n\n{items}", icon="🚫")
 
 
-def _show_warnings(warnings: tuple[Issue, ...]) -> None:
+def _show_warnings(warnings: tuple[Issue, ...], where: str = "this file") -> None:
     """Warnings in full and open by default, with the count in the heading."""
     heading, items = _issue_list(
-        f"{_count(len(warnings), 'thing')} to check in this file", warnings, MAX_ISSUES_SHOWN
+        f"{_count(len(warnings), 'thing')} to check in {where}", warnings, MAX_ISSUES_SHOWN
     )
     with st.expander(f"⚠️ {heading}", expanded=True):
         st.markdown(items)
@@ -219,8 +254,160 @@ def _find_tab(show: PerformerLoad) -> None:
     st.caption("The schedule finder is added in step U4.")
 
 
+def _problems_csv(checks: tuple[ScheduleCheck, ...], data: PerformerData) -> bytes:
+    """The violations report, as the command writes it (UTF-8 with a byte-order mark, so
+    Excel shows accents correctly; see `io.write_text`)."""
+    return format_violations_csv(checks, data).encode("utf-8-sig")
+
+
+def _problems_file_name(schedule_file_name: str) -> str:
+    return f"{Path(schedule_file_name).stem}_problems.csv"
+
+
+def _read_schedules(name: str, raw: bytes) -> ScheduleLoad | None:
+    """Turn the uploaded bytes into a ScheduleLoad, or show why not."""
+    try:
+        return parse_schedules(decode_text(raw, name))
+    except InputError as problem:
+        _show_problem(problem.issues, f"The schedule file {_plain(name)} cannot be used")
+    except Exception:  # noqa: BLE001 - organisers get a short message, never a traceback
+        st.error(UNEXPECTED_PROBLEM, icon="🚫")
+    return None
+
+
+def _overview_table(checks: tuple[ScheduleCheck, ...]) -> None:
+    """One row per schedule, worded and counted by `report.overview_rows` like the command."""
+    header, *rows = overview_rows(checks)
+    st.markdown("#### Overview")
+    st.dataframe(pd.DataFrame(rows, columns=list(header)), hide_index=True)
+
+
+def _pairs_table(pairs: tuple[PairProblem, ...], data: PerformerData) -> pd.DataFrame:
+    """One row per pair of performances that are too close together."""
+
+    def name(key: str) -> str:
+        return data.performance_names.get(key, key)
+
+    return pd.DataFrame(
+        {
+            "No.": list(range(1, len(pairs) + 1)),
+            "First performance": [name(pair.performance_a) for pair in pairs],
+            "First slot": [pair.position_a for pair in pairs],
+            "Second performance": [name(pair.performance_b) for pair in pairs],
+            "Second slot": [pair.position_b for pair in pairs],
+            "Slots between": [pair.slots_between for pair in pairs],
+            "Slots needed": [pair.required for pair in pairs],
+            "Performers affected": [len(pair.performers) for pair in pairs],
+        }
+    )
+
+
+def _who_is_affected(
+    check: ScheduleCheck, pairs: tuple[PairProblem, ...], data: PerformerData, *, expanded: bool
+) -> None:
+    """For each pair, the performers affected: the command's second list."""
+    affected = len({violation.performer for violation in check.violations})
+    with st.expander(f"Who is affected ({_count(affected, 'performer')})", expanded=expanded):
+        for number, pair in enumerate(pairs, 1):
+            first = data.performance_names.get(pair.performance_a, pair.performance_a)
+            second = data.performance_names.get(pair.performance_b, pair.performance_b)
+            people = "\n".join(
+                f"- {_plain(data.performer_names.get(who, who))}" for who in pair.performers
+            )
+            st.markdown(f"**{number}. {_plain(first)} and {_plain(second)}**\n\n{people}")
+
+
+def _show_check(check: ScheduleCheck, data: PerformerData, *, expanded: bool) -> None:
+    """The write-up for one schedule.
+
+    The sentences come from `format_check`, so they are the command's. Its layout is
+    fixed: line 0 is the verdict, line 1 the slot count, line 4 (when the schedule itself
+    has problems) says that spacing was not checked, and the last line (when it has not)
+    is the tightest spacing.
+    """
+    lines = [line.strip() for line in format_check(check, data).splitlines()]
+    st.markdown(f"#### {'✅' if check.valid else '❌'} {_plain(lines[0])}")
+    st.markdown(_plain(lines[1]))
+
+    if check.problems:
+        items = "\n".join(f"- {_plain(problem.message)}" for problem in check.problems)
+        st.error(
+            f"**Problems with the schedule itself ({len(check.problems)})**\n\n"
+            f"{_plain(lines[4])}\n\n{items}",
+            icon="🚫",
+        )
+        return
+
+    pairs = group_violations(check.violations)
+    if pairs:
+        st.markdown(f"**Conflicting performance pairs ({len(pairs)})**")
+        st.dataframe(_pairs_table(pairs, data), hide_index=True)
+        _who_is_affected(check, pairs, data, expanded=expanded)
+    st.markdown(_plain(lines[-1]))
+
+
+def _show_totals(checks: tuple[ScheduleCheck, ...]) -> None:
+    invalid = sum(1 for check in checks if not check.valid)
+    sentence = format_totals(checks)
+    if invalid == 0:
+        st.success(sentence, icon="✅")
+    elif invalid == len(checks):
+        st.error(sentence, icon="🚫")
+    else:
+        st.warning(sentence, icon="⚠️")
+
+
+def _show_results(checks: tuple[ScheduleCheck, ...], data: PerformerData, file_name: str) -> None:
+    """The overview, the write-up of each schedule, the download and the closing sentence."""
+    several = len(checks) > 1
+    many = len(checks) > FULL_DETAIL_UP_TO
+    if several:
+        _overview_table(checks)
+    for check in checks:
+        if many and check.valid:
+            continue
+        _show_check(check, data, expanded=not several)
+    if many:
+        st.caption(VALID_LISTED_IN_TABLE)
+    if any(check.violations for check in checks):
+        st.download_button(
+            DOWNLOAD_PROBLEMS_LABEL,
+            data=_problems_csv(checks, data),
+            file_name=_problems_file_name(file_name),
+            mime="text/csv",
+        )
+    if several:
+        _show_totals(checks)
+
+
 def _check_tab(show: PerformerLoad) -> None:
-    st.caption("The schedule checker is added in step U3.")
+    """Section 4.4: upload a schedule file, choose the rest, read the result.
+
+    Nothing is stored: the result is worked out again on every run, so it always matches
+    the performer file, the schedule file and the gap that are on the page.
+    """
+    uploaded = st.file_uploader(
+        SCHEDULE_FILE_LABEL,
+        type=["csv"],
+        key=f"schedule_upload_{st.session_state['upload_round']}",
+    )
+    gap = int(
+        st.number_input(GAP_LABEL, min_value=0, value=1, step=1, key="check_gap", help=GAP_HELP)
+    )
+    if uploaded is None:
+        return
+
+    load = _read_schedules(uploaded.name, uploaded.getvalue())
+    if load is None:
+        return
+    if load.warnings:
+        _show_warnings(load.warnings, "the schedule file")
+    try:
+        checks = check_schedules(show.data, load.schedules, gap)
+    except Exception:  # noqa: BLE001 - organisers get a short message, never a traceback
+        st.error(UNEXPECTED_CHECK_PROBLEM, icon="🚫")
+        return
+    _show_results(checks, show.data, uploaded.name)
 
 
 # ---------------------------------------------------------------- the page

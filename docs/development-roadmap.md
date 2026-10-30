@@ -50,4 +50,5 @@ Each step ends with tests passing and a commit.
 - [ ] `ui-design.md`, then the simple UI
 - [x] U1, core additions the UI needs: `decode_text`, `performer_file_columns`, `schedule_rows`, `next_pick`, `format_found`, `no_schedules_heading`, `overview_rows`; `tests/test_ui_helpers.py` (D50 to D52)
 - [x] U2, app skeleton and the "Your show" section: `app.py`, `.streamlit/config.toml`, `tests/test_app.py` (D48, D49, D53, D54; Q16 and Q17 answered)
+- [x] U3, "Check a schedule" tab: upload, rest (gap), overview table, pairs table with who is affected, problems with the schedule itself, problems download; `app.py`, `tests/test_app.py` (D55)
 - [ ] README with worked examples, `user-guide.md`

@@ -8,7 +8,7 @@
 2. **Only what I read counts.** I can copy the Project's files into my sandbox, rebuild the folders, and run the whole test suite there, and none of that enters the conversation. So each task card has a **Read** list (its cost) and a **Run** line (free).
 3. **One task per chat.** Start from the template in section 2 and end with the list of files to copy. Start the next task in a new chat.
 4. **Keep the Project current.** After each step, replace the old versions of the changed files in the Project with the new ones. I rebuild the folder layout from the flat copies.
-5. **Regenerate `docs/api-summary.md`** after any step that changes a public name: `python scripts/make_api_summary.py > docs/api-summary.md`. It is built from the code, so it cannot drift.
+5. **Regenerate `docs/api-summary.md`** after any step that changes a public name: `python src/performance_scheduling/make_api_summary.py > docs/api-summary.md`. It is built from the code, so it cannot drift.
 
 ## 2. Starting message for a task
 
@@ -176,9 +176,9 @@ Suggested order: answer Q16 and Q17, then U1 to U5 in order. D1 to D3 and M1 can
 - docs/api-summary.md (about 2,335)
 - the message list my script prints (estimate) (about 5,000)
 
-**Run (free).** A new script that lists every message string in the code (I write and run it; it goes in `scripts/`).
+**Run (free).** A new script that lists every message string in the code (I write and run it; it goes in `src/performance_scheduling/`).
 
-**Files I deliver.** docs/error-messages.md, scripts/list_messages.py, development-roadmap.md
+**Files I deliver.** docs/error-messages.md, src/performance_scheduling/list_messages.py, development-roadmap.md
 
 **Done when.** Every message in the code appears once in the catalogue, and a test or the script fails if one is added without an entry.
 
@@ -258,7 +258,7 @@ Suggested order: answer Q16 and Q17, then U1 to U5 in order. D1 to D3 and M1 can
 
 **Run (free).** A generator for the synthetic show and timings of the finder (I write and run them).
 
-**Files I deliver.** docs/test-datasets.md, scripts/
+**Files I deliver.** docs/test-datasets.md, src/performance_scheduling/
 
 **Done when.** The notes say how large a show the finder handles inside the default time limit.
 
@@ -269,7 +269,7 @@ Suggested order: answer Q16 and Q17, then U1 to U5 in order. D1 to D3 and M1 can
 - Run `nbstripout` on `notebooks/search_experiment.ipynb` before committing it. The results are kept in `search-approaches.md`.
 - Run the finder on your real show and send me the output (it holds no real names): `schedule-finder --performers "data/private/2026 S2 performer data-anonymous.csv" --gap 2 --pick 1-5`, and again with `--gap 3 --breaks 2`.
 - Add the new docs to the index in `docs/README.md` (I have not seen that file): `project-brief.md`, `task-plan.md`, `api-summary.md`, `ui-design.md`.
-- Put `scripts/make_api_summary.py` in a `scripts/` folder, and add one line for it to `docs/repo-structure.md` if you want it listed.
+- Put `src/performance_scheduling/make_api_summary.py` in a `src/performance_scheduling/` folder, and add one line for it to `docs/repo-structure.md` if you want it listed.
 
 ## 6. Decisions waiting for you
 

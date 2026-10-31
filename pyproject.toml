@@ -11,9 +11,13 @@ requires-python = ">=3.11"
 dependencies = []          # the core uses only the Python standard library
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "ruff", "ipykernel", "jupyter", "pandas", "nbstripout"]
-solver-experiments = ["ortools"]     # only needed for the CP-SAT experiment (decision Q2)
-ui = ["streamlit", "pandas"]         # later, for the simple interface
+# OR-Tools is the search engine behind the schedule finder (D29). The version range is D41:
+# the order of the finder's list can change between versions (D32).
+finder = ["ortools>=9.15,<10"]
+dev = ["pytest>=8", "ruff", "ipykernel", "jupyter", "pandas", "nbstripout", "ortools>=9.15,<10", "streamlit>=1.66,<2"]
+# The page for organisers. It runs the finder, so it needs the finder group too.
+# 1.66 is the version the page and its tests were built and checked with.
+ui = ["streamlit>=1.66,<2", "pandas", "ortools>=9.15,<10"]
 
 # Command-line entry points. The finder needs the "finder" extra (OR-Tools) to run.
 [project.scripts]

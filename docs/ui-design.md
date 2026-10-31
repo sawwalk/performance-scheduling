@@ -199,3 +199,21 @@ Performer names are personal data (`repo-structure.md`, data folder policy).
 ## 10. Out of scope for the first version
 
 Excel (`.xlsx`) upload (CSV only, D5); editing a running order by hand in the page; loading pins from a file; saving a project or history; accounts or a shared hosted version (Q16); printing or PDF; charts; a "my schedule" view for one performer; other languages.
+
+## 11. Manual checklist (a real browser, once before release)
+
+`AppTest` cannot see layout, colour, a spinner or a download. Use the real show file in `data/private/` for item 7 and the examples for the rest. Tick each line.
+
+1. Double-click `run_app.bat` from a fresh start. A window opens and the browser opens the page. No email question, no error text.
+2. Close the window: the page stops responding.
+3. Start again. Load `data/examples/tiny_feasible.csv`. The status line and the two tabs appear.
+4. *Find schedules* with the defaults: a table appears, and the CSV downloads and opens in Excel with accents intact.
+5. Press *Show the next 5* (if offered) and *Try a gap of 2*.
+6. Load `data/examples/impossible_dense.csv`: a red box with reasons, no table.
+7. Load the real show file with a 30-second limit: the spinner is visible during the search, and the page is usable afterwards.
+8. In *Check a schedule*, upload `tiny_feasible_schedule_invalid.csv`: pairs table, "who is affected", and the problems CSV download.
+9. Narrow the browser window to phone width: the table scrolls and nothing is cut off.
+10. *Clear all data*: everything, including the upload boxes, is empty.
+11. Open a second browser tab: it starts empty (one tab, one session).
+12. Check that no file was written to the project folder apart from downloads.
+

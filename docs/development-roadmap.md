@@ -9,9 +9,9 @@ Each step ends with tests passing and a commit.
 - [x] `README.md` stub
 - [x] `pyproject.toml`
 - [x] Synthetic example data in `data/examples/` (see `test-datasets.md`)
-- [ ] Commit these files, and add `.gitkeep` in empty folders
-- [ ] Create the virtual environment and install with `pip install -e ".[dev]"`
-- [ ] Copy the real anonymised file into `data/private/`
+- [x] Commit these files, and add `.gitkeep` in empty folders
+- [x] Create the virtual environment and install with `pip install -e ".[dev]"`
+- [x] Copy the real anonymised file into `data/private/`
 
 ## Phase 1: Shared core
 - [x] `models.py`: data structures, with `test_models.py` and `data-model.md`
@@ -23,12 +23,12 @@ Each step ends with tests passing and a commit.
 ## Phase 2: Schedule checker
 - [x] `validator.py`: structural checks, then spacing checks; `test_validator.py`
 - [x] `cli.py` and `report.py`: checker command; `test_cli.py`, `test_report.py`
-- [ ] Try it on the example data in a notebook
+- [x] Try it on the example data in a notebook
 
 ## Phase 3: Schedule finder (basic)
 - [x] Notebook experiment settled decision Q2: OR-Tools CP-SAT (D29, 2026-10-17)
 - [x] Record the installed OR-Tools version in `environment.md` (D32): 9.15.6755
-- [ ] Refresh the "Rough" results in `test-datasets.md` with the CP-SAT results from the experiment
+- [x] Refresh the "Rough" results in `test-datasets.md` with the CP-SAT results from the experiment
 - [x] Brute-force reference counter for small examples (in `tests/test_solver.py`)
 - [x] `solver.py` (CP-SAT): schedules for any `k`, any number of breaks, with a time limit (D38 to D41)
 - [x] Every result passed through the checker, inside the finder and in tests (D39)
@@ -52,5 +52,5 @@ Each step ends with tests passing and a commit.
 - [x] U2, app skeleton and the "Your show" section: `app.py`, `.streamlit/config.toml`, `tests/test_app.py` (D48, D49, D53, D54; Q16 and Q17 answered)
 - [x] U3, "Check a schedule" tab: upload, rest (gap), overview table, pairs table with who is affected, problems with the schedule itself, problems download; `app.py`, `tests/test_app.py` (D55)
 - [x] U4, "Find schedules" tab: settings, pins form, pick, seed and shuffle, search, results table, downloads, "Show the next 5", "Try a gap of N", the no-schedule and stopped boxes, stale results; `app.py`, `tests/test_app.py` (D56)
-- [ ] U5, launcher, `ui` extra version range, README, manual checklist in a real browser (`ui-design.md` section 9)
+- [x] U5, launcher (`run_app.bat`), `ui` extra version range, README, manual checklist in `ui-design.md` section 11 (D57). The checklist itself has not yet been run in a real browser
 - [ ] README with worked examples, `user-guide.md`

@@ -59,7 +59,7 @@ The checklist for trying it in a real browser is in [docs/ui-design.md](docs/ui-
 
 ## Data and privacy
 
-Performer names are personal data. Real files go in `data/private/`, which git ignores. Only synthetic files in `data/examples/` are committed. See [docs/test-datasets.md](docs/test-datasets.md).
+Performer names are personal data. Real files go in `data/private/`, which git ignores. Only synthetic files in `data/examples/` are committed. The rules are in [docs/data-privacy.md](docs/data-privacy.md); the datasets are described in [docs/test-datasets.md](docs/test-datasets.md).
 
 ## Documentation
 

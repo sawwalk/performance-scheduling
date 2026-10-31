@@ -29,7 +29,9 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# scripts/ holds developer tools (not part of the installed package) that some tests import.
+pythonpath = ["scripts"]
 
 [tool.ruff]
 line-length = 100
-src = ["src", "tests"]
+src = ["src", "tests", "scripts"]

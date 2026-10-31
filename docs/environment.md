@@ -34,6 +34,15 @@ only the standard library `csv` module plus the solver, so the logic stays small
 easy to test. `pandas` is reserved for notebooks and the UI. (OR-Tools itself installs `numpy` and `pandas`, so they are present wherever the finder is installed; the core code still does not import them.) Dependencies are split
 into "core", "finder", "dev" and "ui" groups so the checker can be installed without the rest. The UI runs the finder, so the `ui` group includes OR-Tools too.
 
+## Developer tools
+
+Run from the project folder with the `.venv` active (they are not installed with the package):
+
+    python scripts/make_api_summary.py > docs/api-summary.md   # after changing a public name
+    python scripts/list_messages.py --check                    # after adding or changing a message
+
+The test suite runs the second check as well (`tests/test_error_messages.py`).
+
 ## Starting the page
 
 On Windows, double-click `run_app.bat` in the project folder. It uses `.venv\Scripts\python.exe`, changes to the project folder first (so `.streamlit/config.toml` is found, D53), checks that Streamlit, OR-Tools and the package import, and then runs `python -m streamlit run src\performance_scheduling\app.py`. If `.venv` is missing or a package is missing, it says so in plain words and waits for a key press. Elsewhere, run the same `streamlit run` command from the project folder with the `.venv` active.

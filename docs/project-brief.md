@@ -11,8 +11,8 @@
 - **Schedule checker:** done (`schedule-checker` command).
 - **Schedule finder:** done (`schedule-finder` command). Search engine is OR-Tools CP-SAT (9.15.6755; `pyproject.toml` asks for `>=9.15,<10`). It does pre-checks, lists schedules, cross-checks each one with the checker, explains why none exist, names pins that cannot all be kept, and honours a time limit.
 - **The page:** done and tested with Streamlit's `AppTest` (Streamlit 1.66.1; `pyproject.toml` asks for `>=1.66,<2`). Tasks U1 to U5 are finished. Start it by double-clicking `run_app.bat` (Windows), or run `streamlit run src/performance_scheduling/app.py` from the project folder. It shows the "Find schedules" and "Check a schedule" tabs.
-- **Tests:** 604 passing and ruff clean, in my sandbox (Linux, Python 3.12) and on your Windows machine.
-- **Not yet done:** the manual checklist in a real browser (`ui-design.md` section 11) has not been run; `run_app.bat` has not been run on Windows. Four docs are still to write (`data-privacy.md`, `error-messages.md`, `testing-strategy.md`, `user-guide.md`), plus the optional tasks M1 to M3. See `task-plan.md`.
+- **Tests:** 613 passing and ruff clean in my sandbox (Linux, Python 3.12). The 604 before D2 also passed on your Windows machine.
+- **Still to do:** nothing in the code. The manual checklist (`ui-design.md` section 11) was run in a real browser on 2026-10-31 and everything worked. Two docs are still to write (`testing-strategy.md`, `user-guide.md`), plus the optional tasks M1 to M3. See `task-plan.md`. `data-privacy.md` and `error-messages.md` are written.
 
 ## Code layout
 
@@ -25,7 +25,7 @@ A file may only import from files before it in this chain:
 - Only `io.py` touches files. `validator.py` and `solver.py` never read files or print.
 - `report.py` (and the messages built in `validator.py` and `solver.py`) hold the wording, so the command line and the UI show the same sentences. `selection.py` holds the "pick schedules by number" rules.
 - OR-Tools is imported only inside `solver.py` when a search runs, so the checker installs and runs without it.
-- `docs/api-summary.md` lists every public function and container with its signature. Use it instead of attaching source files. Regenerate it after any change to a public name with `src/performance_scheduling/make_api_summary.py`.
+- `docs/api-summary.md` lists every public function and container with its signature. Use it instead of attaching source files. Regenerate it after any change to a public name with `python scripts/make_api_summary.py > docs/api-summary.md`.
 
 ## How to work with me
 
@@ -79,5 +79,6 @@ None at the moment. Q12 (where the real show file lives) is settled: it lives in
 | What does each file do? | `repo-structure.md` |
 | Which datasets have known answers? | `test-datasets.md` |
 | How does the UI work? How do I try it in a browser? | `ui-design.md` (section 11 is the manual checklist) |
+| What does each message mean, and what do I do about it? | `error-messages.md` (kept true by `python scripts/list_messages.py --check` and a test) |
 | How do I start the page, and what does `.venv` need? | `README.md`, `environment.md` |
 | What is left to do, and what does each task need? | `task-plan.md`, `development-roadmap.md` |

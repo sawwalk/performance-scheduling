@@ -13,6 +13,7 @@ Run it from the project folder, so that `.streamlit/config.toml` is found:
 
 from __future__ import annotations
 
+import random
 import re
 from pathlib import Path
 
@@ -21,28 +22,54 @@ import streamlit as st
 
 from performance_scheduling.io import (
     decode_text,
+    format_schedules,
     parse_performers,
     parse_schedules,
     performer_file_columns,
     read_text,
+    schedule_rows,
+    schedules_file_name,
 )
 from performance_scheduling.models import (
+    BREAK,
+    FinderResult,
+    FinderStatus,
     InputError,
     Issue,
     PerformerData,
     PerformerLoad,
+    Pins,
     ScheduleCheck,
     ScheduleLoad,
 )
 from performance_scheduling.report import (
     MAX_ISSUES_SHOWN,
     PairProblem,
+    format_availability,
     format_check,
+    format_found,
     format_issues,
+    format_larger_gap_prompt,
+    format_missing,
     format_totals,
     format_violations_csv,
     group_violations,
+    no_schedules_heading,
     overview_rows,
+)
+from performance_scheduling.selection import (
+    Picked,
+    Selection,
+    apply_selection,
+    next_pick,
+    parse_selection,
+    schedules_to_request,
+)
+from performance_scheduling.solver import (
+    DEFAULT_TIME_LIMIT,
+    SolverNotInstalled,
+    find_schedules,
+    solver_version,
 )
 from performance_scheduling.validator import check_schedules
 
@@ -79,6 +106,61 @@ VALID_LISTED_IN_TABLE = "Valid schedules are listed in the table only."
 # The two column pickers' widget keys (forgotten whenever a new file arrives).
 _PICKER_KEYS = ("id_column", "performance_column")
 
+# The finder tab's widget keys (forgotten whenever a new file arrives, like the pins).
+_FINDER_KEYS = (
+    "find_gap",
+    "find_breaks",
+    "pin_slot",
+    "pin_item",
+    "find_pick",
+    "find_seed",
+    "find_limit",
+    "find_time_limit",
+    "search_requested",
+)
+
+# The finder's defaults. The pick, the limit and their meaning are the command's
+# (`cli.DEFAULT_PICK`, `cli.DEFAULT_LIMIT`, repeated here because the page may not import `cli`).
+DEFAULT_PICK = "1-5"
+DEFAULT_LIMIT = 100
+DEFAULT_SECONDS = int(DEFAULT_TIME_LIMIT)
+LARGEST_SEED = 999_999
+
+BREAKS_LABEL = "Breaks"
+BREAKS_HELP = "Pinned breaks count towards this."
+PINS_HEADING = "**Pins (optional):** fix a performance or a break to a slot"
+PIN_SLOT_LABEL = "Slot"
+PIN_ITEM_LABEL = "Item"
+PIN_ITEM_PLACEHOLDER = "Choose a performance or a break"
+ADD_PIN_LABEL = "Add pin"
+REMOVE_PIN_LABEL = "Remove"
+BLOCKING_PIN = "These cannot all be kept"
+PICK_LABEL = "Which schedules"
+PICK_HELP = "1-5, 6-10, 1,4,9, 1-3,7,20-22 or all"
+SELECT_ALL_LABEL = "Select all"
+MORE_OPTIONS_LABEL = "More options"
+SEED_LABEL = "Shuffle seed"
+SEED_HELP = "Leave empty for the default list. The same number always gives the same list."
+SHUFFLE_LABEL = "Shuffle"
+LIMIT_LABEL = "Most schedules per run"
+TIME_LIMIT_LABEL = "Longest search, seconds"
+FIND_LABEL = "Find schedules"
+DOWNLOAD_SCHEDULES_LABEL = "Download these schedules (CSV)"
+SEARCH_LONGER_LABEL = "Search for longer"
+STALE_SENTENCE = "Settings changed. Press Find schedules to update."
+STALE_FADE = "<style>.st-key-finder_results { opacity: 0.45; }</style>"
+
+NOT_INSTALLED = (
+    "The schedule finder is not installed on this computer. Ask whoever set it up to install it."
+)
+INSTALL_DETAILS_LABEL = "What to give them"
+INTERNAL_PROBLEM = "Something went wrong inside the finder, and no schedule was shown."
+INTERNAL_DETAILS_LABEL = "Details (to copy into a bug report)"
+UNEXPECTED_FIND_PROBLEM = (
+    "Something unexpected went wrong while searching, so no schedule is shown. "
+    "Ask whoever set this up."
+)
+
 
 # ---------------------------------------------------------------- what the page remembers
 
@@ -106,7 +188,7 @@ def _forget_show() -> None:
     for key, value in _fresh_state().items():
         if key != "performer_file":
             st.session_state[key] = value
-    for key in _PICKER_KEYS:
+    for key in _PICKER_KEYS + _FINDER_KEYS:
         st.session_state.pop(key, None)
 
 
@@ -247,11 +329,353 @@ def _your_show() -> PerformerLoad | None:
     return show
 
 
-# ---------------------------------------------------------------- the tabs (later steps)
+# ---------------------------------------------------------------- the tabs
+
+
+# ---------------------------------------------------------------- 2. Find schedules (U4)
+
+
+def _item_name(show: PerformerLoad, item: str) -> str:
+    """How a pinned item reads: the performance's display name, or "a break"."""
+    return "a break" if item == BREAK else show.data.performance_names.get(item, item)
+
+
+def _add_pin() -> None:
+    """Pin the chosen item to the chosen slot (a callback, so it runs before the next draw).
+
+    A slot holds one item and a performance has one slot, so pinning onto an occupied slot
+    replaces what was there, and pinning a performance again moves it. Breaks may repeat.
+    """
+    state = st.session_state
+    item = state.get("pin_item")
+    if item is None:
+        return
+    slot = int(state["pin_slot"])
+    pins = {
+        position: pinned
+        for position, pinned in state["pins"].items()
+        if position != slot and (item == BREAK or pinned != item)
+    }
+    pins[slot] = item
+    state["pins"] = pins
+
+
+def _remove_pin(slot: int) -> None:
+    st.session_state["pins"] = {p: i for p, i in st.session_state["pins"].items() if p != slot}
+
+
+def _select_all() -> None:
+    st.session_state["find_pick"] = "all"
+
+
+def _shuffle() -> None:
+    st.session_state["find_seed"] = random.randint(1, LARGEST_SEED)
+
+
+def _request_search(**changes: object) -> None:
+    """Change some settings, then search again on the next draw (the "Show the next 5" family)."""
+    for key, value in changes.items():
+        st.session_state[key] = value
+    st.session_state["search_requested"] = True
+
+
+def _blocking_slots(run: dict[str, object] | None) -> set[int]:
+    """Pinned slots the last search named as impossible to keep together.
+
+    They are only marked while the pins are the ones that search used; after any change to
+    the pins the names would describe a situation that is gone.
+    """
+    if run is None or "result" not in run:
+        return set()
+    settings = run["settings"]
+    result = run["result"]
+    assert isinstance(settings, dict) and isinstance(result, FinderResult)
+    if settings["pins"] != _pin_key(st.session_state["pins"]):
+        return set()
+    return set(result.blocking_pins)
+
+
+def _pin_key(pins: dict[int, str]) -> tuple[tuple[int, str], ...]:
+    return tuple(sorted(pins.items()))
+
+
+def _pins_section(show: PerformerLoad, slots: int) -> None:
+    """Section 4.3: the guided form for pins, and the list of pins so far."""
+    names = show.data.performance_names
+    st.markdown(PINS_HEADING)
+    items = [BREAK, *sorted(names, key=lambda key: (names[key].casefold(), key))]
+    slot_column, item_column, add_column = st.columns([1, 3, 1], vertical_alignment="bottom")
+    slot_column.number_input(
+        PIN_SLOT_LABEL, min_value=1, max_value=slots, value=1, step=1, key="pin_slot"
+    )
+    item_column.selectbox(
+        PIN_ITEM_LABEL,
+        items,
+        index=None,
+        key="pin_item",
+        format_func=lambda key: "Break" if key == BREAK else names.get(key, key),
+        placeholder=PIN_ITEM_PLACEHOLDER,
+    )
+    add_column.button(
+        ADD_PIN_LABEL,
+        key="add_pin",
+        on_click=_add_pin,
+        disabled=st.session_state.get("pin_item") is None,
+    )
+
+    blocking = _blocking_slots(st.session_state["run"])
+    for slot, item in sorted(st.session_state["pins"].items()):
+        line, remove = st.columns([4, 1], vertical_alignment="center")
+        mark = f" ⚠️ {BLOCKING_PIN}" if slot in blocking else ""
+        line.markdown(f"- Slot {slot}: {_plain(_item_name(show, item))}{mark}")
+        remove.button(
+            REMOVE_PIN_LABEL, key=f"remove_pin_{slot}", on_click=_remove_pin, args=(slot,)
+        )
+
+
+def _read_pick(limit: int) -> Selection | None:
+    """The typed pick, or None (with the plain message shown under the box) if it is bad."""
+    try:
+        return parse_selection(st.session_state["find_pick"], max_count=limit)
+    except InputError as problem:
+        st.error("\n\n".join(_plain(issue.message) for issue in problem.issues), icon="🚫")
+        return None
+
+
+def _current_settings() -> dict[str, object]:
+    """Everything on the form that a search depends on, for comparing with the last search."""
+    state = st.session_state
+    seed = state["find_seed"]
+    return {
+        "gap": int(state["find_gap"]),
+        "breaks": int(state["find_breaks"]),
+        "pins": _pin_key(state["pins"]),
+        "pick": str(state["find_pick"]).strip(),
+        "seed": None if seed is None else int(seed),
+        "limit": int(state["find_limit"]),
+        "time_limit": int(state["find_time_limit"]),
+    }
+
+
+def _search(
+    show: PerformerLoad, settings: dict[str, object], selection: Selection
+) -> dict[str, object]:
+    """Run the finder once and return what to remember about it (the `run` key)."""
+    pins = {int(slot): item for slot, item in settings["pins"]}  # type: ignore[attr-defined]
+    try:
+        version = solver_version()
+    except SolverNotInstalled as problem:
+        return {"settings": settings, "failure": ("not_installed", str(problem))}
+    limit = int(settings["limit"])  # type: ignore[call-overload]
+    try:
+        with st.spinner(f"Searching for up to {settings['time_limit']} seconds..."):
+            result = find_schedules(
+                show.data,
+                gap=int(settings["gap"]),  # type: ignore[call-overload]
+                breaks=int(settings["breaks"]),  # type: ignore[call-overload]
+                pins=Pins(slots=pins) if pins else None,
+                seed=settings["seed"],  # type: ignore[arg-type]
+                count=schedules_to_request(selection, limit),
+                time_limit=float(settings["time_limit"]),  # type: ignore[arg-type]
+            )
+            picked = apply_selection(result, selection, limit)
+    except SolverNotInstalled as problem:
+        return {"settings": settings, "failure": ("not_installed", str(problem))}
+    except RuntimeError as problem:  # a schedule failed the cross-check: a bug (D39)
+        return {"settings": settings, "failure": ("internal", str(problem))}
+    except Exception:  # noqa: BLE001 - organisers get a short message, never a traceback
+        return {"settings": settings, "failure": ("unexpected", "")}
+    return {
+        "settings": settings,
+        "selection": selection,
+        "result": result,
+        "picked": picked,
+        "version": version,
+    }
+
+
+def _show_failure(kind: str, detail: str) -> None:
+    if kind == "not_installed":
+        st.error(NOT_INSTALLED, icon="🚫")
+        with st.expander(INSTALL_DETAILS_LABEL):
+            st.code(detail, language=None)
+    elif kind == "internal":
+        st.error(INTERNAL_PROBLEM, icon="🚫")
+        with st.expander(INTERNAL_DETAILS_LABEL):
+            st.code(detail, language=None)
+    else:
+        st.error(UNEXPECTED_FIND_PROBLEM, icon="🚫")
+
+
+def _no_schedule_box(result: FinderResult) -> None:
+    """The finder's heading and reasons, unchanged: red if none exist, yellow if time ran out."""
+    reasons = "\n".join(f"- {_plain(issue.message)}" for issue in result.explanation)
+    text = f"**{no_schedules_heading(result.status)}**\n\n{reasons}".strip()
+    if result.status is FinderStatus.EXHAUSTED:
+        st.error(text, icon="🚫")
+    else:
+        st.warning(text, icon="⏱️")
+
+
+def _schedule_table(
+    schedules: tuple, show: PerformerLoad, pinned: dict[int, str]
+) -> None:  # fmt: skip
+    """Slots down, schedules across, from `schedule_rows` so it matches the CSV.
+
+    Display only: pinned slots say so in the position column (not colour alone) and breaks
+    are grey. The downloaded file is untouched.
+    """
+    header, *rows = schedule_rows(schedules, show.data.performance_names)
+    shown = [[f"{row[0]} (pinned)" if int(row[0]) in pinned else row[0], *row[1:]] for row in rows]
+    frame = pd.DataFrame(shown, columns=header)
+    styled = frame.style.map(
+        lambda cell: "color: grey; font-style: italic" if cell == BREAK else ""
+    )
+    st.dataframe(styled, hide_index=True)
+
+
+def _show_found(
+    show: PerformerLoad, run: dict[str, object], settings: dict[str, object], *, stale: bool
+) -> None:
+    """The result of the last search: the table, the downloads and the buttons."""
+    result = run["result"]
+    picked = run["picked"]
+    selection = run["selection"]
+    assert isinstance(result, FinderResult) and isinstance(picked, Picked)
+    assert isinstance(selection, Selection)
+    limit = int(settings["limit"])  # type: ignore[call-overload]
+    gap = int(settings["gap"])  # type: ignore[call-overload]
+    seed = settings["seed"]
+    stopped = picked.more_exist is None
+    last = picked.numbers.highest or 0
+
+    if picked.schedules:
+        st.success(format_found(len(picked.schedules), str(picked.numbers)), icon="✅")
+        availability = format_availability(
+            picked.more_exist, total=picked.total, produced=len(result.schedules), last_number=last
+        )
+        if stopped:
+            st.warning(availability, icon="⏱️")
+        else:
+            st.markdown(availability)
+    elif not result.schedules:
+        _no_schedule_box(result)
+
+    if picked.missing.ranges and result.schedules:
+        st.warning(
+            format_missing(
+                str(picked.missing),
+                picked.missing.count or 0,
+                stopped=stopped,
+                total=picked.total,
+            ),
+            icon="⚠️",
+        )
+
+    if picked.schedules:
+        _schedule_table(picked.schedules, show, dict(settings["pins"]))  # type: ignore[call-overload]
+        columns = st.columns(2)
+        columns[0].download_button(
+            DOWNLOAD_SCHEDULES_LABEL,
+            data=format_schedules(picked.schedules, show.data.performance_names).encode(
+                "utf-8-sig"
+            ),
+            file_name=schedules_file_name(seed, str(selection)),  # type: ignore[arg-type]
+            mime="text/csv",
+            disabled=stale,
+        )
+        if picked.more_exist:
+            following = next_pick(selection, limit, last)
+            size = parse_selection(following).count or 1
+            label = f"Show the next {size}" if size > 1 else "Show the next schedule"
+            columns[1].button(
+                label,
+                key="show_next",
+                on_click=_request_search,
+                kwargs={"find_pick": following},
+                disabled=stale,
+            )
+
+    if stopped:
+        st.button(
+            SEARCH_LONGER_LABEL,
+            key="search_longer",
+            on_click=_request_search,
+            kwargs={"find_time_limit": int(settings["time_limit"]) * 2},  # type: ignore[call-overload]
+            disabled=stale,
+        )
+
+    if picked.schedules:
+        st.markdown(format_larger_gap_prompt(gap))
+        st.button(
+            f"Try a gap of {gap + 1}",
+            key="try_gap",
+            on_click=_request_search,
+            kwargs={"find_gap": gap + 1},
+            disabled=stale,
+        )
+
+    order = "default order" if seed is None else f"{seed}"
+    st.caption(f"Seed: {order}. Search engine: OR-Tools {run['version']}.")
+
+
+def _show_run(show: PerformerLoad, run: dict[str, object], current: dict[str, object]) -> None:
+    """Section 4.3, results: what the last search found, greyed if the form has moved on."""
+    settings = run["settings"]
+    assert isinstance(settings, dict)
+    stale = settings != current
+    with st.container(key="finder_results"):
+        if stale:
+            st.html(STALE_FADE)
+            st.warning(STALE_SENTENCE, icon="✏️")
+        if "failure" in run:
+            kind, detail = run["failure"]  # type: ignore[misc]
+            _show_failure(kind, detail)
+        else:
+            _show_found(show, run, settings, stale=stale)
 
 
 def _find_tab(show: PerformerLoad) -> None:
-    st.caption("The schedule finder is added in step U4.")
+    """Section 4.3: the settings, the pins, the pick, the search and its results.
+
+    The form is the widgets themselves (each has a key). A search stores its settings with
+    its result in `run`, so the page can tell when the form no longer matches the result.
+    """
+    state = st.session_state
+    state.setdefault("find_limit", DEFAULT_LIMIT)
+
+    st.number_input(GAP_LABEL, min_value=0, value=1, step=1, key="find_gap", help=GAP_HELP)
+    breaks = int(
+        st.number_input(
+            BREAKS_LABEL, min_value=0, value=0, step=1, key="find_breaks", help=BREAKS_HELP
+        )
+    )
+    _pins_section(show, len(show.data.performance_names) + breaks)
+
+    st.text_input(PICK_LABEL, value=DEFAULT_PICK, key="find_pick", help=PICK_HELP)
+    selection = _read_pick(int(state["find_limit"]))
+    st.button(SELECT_ALL_LABEL, key="select_all", on_click=_select_all)
+
+    with st.expander(MORE_OPTIONS_LABEL):
+        seed_column, shuffle_column = st.columns([3, 1], vertical_alignment="bottom")
+        seed_column.number_input(
+            SEED_LABEL, value=None, step=1, format="%d", key="find_seed", help=SEED_HELP
+        )
+        shuffle_column.button(SHUFFLE_LABEL, key="shuffle", on_click=_shuffle)
+        st.number_input(LIMIT_LABEL, min_value=1, step=10, key="find_limit")
+        st.number_input(
+            TIME_LIMIT_LABEL, min_value=1, value=DEFAULT_SECONDS, step=5, key="find_time_limit"
+        )
+
+    current = _current_settings()
+    clicked = st.button(FIND_LABEL, type="primary", key="find_schedules")
+    requested = state.pop("search_requested", False)
+    if (clicked or requested) and selection is not None:
+        state["run"] = _search(show, current, selection)
+        st.rerun()  # so the pin list can mark the pins the search named
+
+    if state["run"] is not None:
+        _show_run(show, state["run"], current)
 
 
 def _problems_csv(checks: tuple[ScheduleCheck, ...], data: PerformerData) -> bytes:

@@ -69,6 +69,11 @@ def labels(elements) -> list[str]:
     return [element.label for element in elements]
 
 
+def expanders(at: AppTest) -> list:
+    """The boxes with a heading of their own: the finder tab's \"More options\" is left out."""
+    return [box for box in at.expander if box.label != "More options"]
+
+
 def all_text(at: AppTest) -> str:
     parts = [plain(m.value) for m in at.markdown]
     parts += [plain(e.value) for e in at.error] + [plain(s.value) for s in at.success]
@@ -106,7 +111,7 @@ def test_a_good_file_shows_its_size_and_opens_the_tabs():
     at = loaded(GOOD, "tiny.csv")
     assert [plain(s.value) for s in at.success] == ["tiny.csv: 4 performers, 3 performances"]
     assert labels(at.tabs) == TABS
-    assert len(at.expander) == 0  # nothing to check, so no warnings box
+    assert len(expanders(at)) == 0  # nothing to check, so no warnings box
     assert at.session_state["show"].rows_used == 6
 
 
@@ -121,7 +126,7 @@ def test_example_file_loads_cleanly_on_the_page():
     assert [plain(s.value) for s in at.success] == [
         "tiny_feasible.csv: 12 performers, 6 performances"
     ]
-    assert len(at.expander) == 0
+    assert len(expanders(at)) == 0
 
 
 def test_a_byte_order_mark_from_excel_is_accepted():
@@ -153,8 +158,8 @@ MESSY = (
 
 def test_warnings_are_shown_in_full_and_open_with_the_count_in_the_heading():
     at = loaded(MESSY)
-    assert len(at.expander) == 1
-    box = at.expander[0]
+    assert len(expanders(at)) == 1
+    box = expanders(at)[0]
     assert box.label == "⚠️ 5 things to check in this file"
     assert box.proto.expanded is True
     text = plain(box.markdown[0].value)
@@ -173,14 +178,14 @@ def test_a_file_with_warnings_still_loads():
 
 def test_one_warning_says_one_thing():
     at = loaded("id,performance\nAmy,Jazz\nAmy,Jazz\n")
-    assert at.expander[0].label == "⚠️ 1 thing to check in this file"
+    assert expanders(at)[0].label == "⚠️ 1 thing to check in this file"
 
 
 def test_more_than_twenty_warnings_are_shortened_like_the_command():
     rows = "id,performance\n" + "Amy,Jazz\n" * 26  # 25 duplicates
     at = loaded(rows)
-    assert at.expander[0].label == "⚠️ 25 things to check in this file"
-    lines = plain(at.expander[0].markdown[0].value).splitlines()
+    assert expanders(at)[0].label == "⚠️ 25 things to check in this file"
+    lines = plain(expanders(at)[0].markdown[0].value).splitlines()
     assert len(lines) == 21
     assert lines[-1] == "- ... and 5 more"
 
@@ -229,8 +234,8 @@ def test_names_with_markdown_characters_are_shown_as_written():
     csv = "id,performance\nAmy_*B*,Jazz $5 [1]\nAmy_*B*,Jazz $5 [1]\n"
     at = loaded(csv, "my_show*.csv")
     assert "my_show*.csv" in plain(at.success[0].value)
-    assert "Amy_*B*, Jazz $5 [1]" in plain(at.expander[0].markdown[0].value)
-    assert "*" not in re.sub(r"\\\*", "", at.expander[0].markdown[0].value)  # all escaped
+    assert "Amy_*B*, Jazz $5 [1]" in plain(expanders(at)[0].markdown[0].value)
+    assert "*" not in re.sub(r"\\\*", "", expanders(at)[0].markdown[0].value)  # all escaped
 
 
 # ---------------------------------------------------------------- the column pickers
@@ -291,7 +296,7 @@ def test_columns_can_be_chosen_in_either_order():
 
 def test_two_columns_need_no_pickers_and_leave_columns_unset():
     at = loaded(GOOD)
-    assert len(at.selectbox) == 0
+    assert [box.key for box in at.selectbox] == ["pin_item"]  # the finder's, not a column picker
     assert at.session_state["columns"] is None
 
 
@@ -361,7 +366,7 @@ def test_clear_all_data_empties_the_session_and_the_upload_box():
     at = loaded(GOOD)
     at.session_state["pins"] = {1: "jazz"}
     at.session_state["run"] = {"result": "x"}
-    assert labels(at.button) == ["Clear all data"]
+    assert labels(at.button)[0] == "Clear all data"
     at.button[0].click().run()
     assert not at.exception
     assert at.session_state["performer_file"] is None
@@ -506,7 +511,7 @@ def add_schedule(
     assert at.file_uploader[1].label == SCHEDULE_LABEL
     at.file_uploader[1].set_value((name, raw, "text/csv")).run()
     if gap is not None:
-        at.number_input[0].set_value(gap).run()
+        at.number_input(key="check_gap").set_value(gap).run()
     assert not at.exception
     return at
 
@@ -535,8 +540,8 @@ def test_the_checker_tab_holds_the_uploader_and_the_rest_and_nothing_else_yet():
     assert labels(check_tab.file_uploader) == [SCHEDULE_LABEL]
     assert check_tab.file_uploader[0].allowed_type == [".csv"]
     assert labels(check_tab.number_input) == [GAP_LABEL]
-    assert at.tabs[0].file_uploader == [] and at.tabs[0].number_input == []
-    assert at.number_input[0].value == 1 and at.number_input[0].min == 0
+    assert at.tabs[0].file_uploader == []
+    assert at.number_input(key="check_gap").value == 1 and at.number_input(key="check_gap").min == 0
     assert headings(at) == []
     assert len(at.dataframe) == 0 and len(at.error) == 0 and len(at.warning) == 0
     assert labels(at.download_button) == ["Example file (download)"]
@@ -552,7 +557,7 @@ def test_a_valid_schedule_says_valid_and_nothing_is_wrong():
     assert "6 slots (no breaks)." in text
     assert "Tightest spacing: 1 slot between a performer's performances." in text
     assert len(at.dataframe) == 0  # no overview for one schedule, no pairs to list
-    assert len(at.expander) == 0
+    assert len(expanders(at)) == 0
     assert len(at.error) == 0 and len(at.warning) == 0
     assert labels(at.download_button) == ["Example file (download)"]  # nothing to download
 
@@ -562,7 +567,7 @@ def test_a_valid_schedule_with_a_break_counts_it_and_the_empty_cell_is_a_warning
     at = with_schedule(f"position,schedule_1\n{rows}\n7,\n")
     assert headings(at) == ["#### ✅ schedule_1: VALID"]
     assert "7 slots (1 break)." in all_text(at)
-    (box,) = at.expander
+    (box,) = expanders(at)
     assert box.label == "⚠️ 1 thing to check in the schedule file"
     assert box.proto.expanded is True
 
@@ -588,7 +593,7 @@ def test_an_invalid_schedule_lists_the_clashing_pair_and_who_is_affected():
             "Performers affected": 1,
         }
     ]
-    (who,) = at.expander
+    (who,) = expanders(at)
     assert who.label == "Who is affected (1 performer)"
     assert who.proto.expanded is True  # one schedule: the organiser wants the names at once
     assert plain(who.markdown[0].value) == "**1. Bollywood (Open) and Tap (Foundations)**\n\n- Person 0006"
@@ -642,7 +647,7 @@ def test_structural_problems_get_their_own_box_and_spacing_is_not_checked():
     assert '- "Hip Hop (Foundations)" appears 2 times in the schedule (positions 2 and 3).' in text
     assert '- "Bollywood (Open)" is in the performer file but missing from the schedule.' in text
     assert '- "Contemporary (Open)" is in the performer file but missing from the schedule.' in text
-    assert len(at.dataframe) == 0 and len(at.expander) == 0
+    assert len(at.dataframe) == 0 and len(expanders(at)) == 0
     assert labels(at.download_button) == ["Example file (download)"]  # no violations to download
     assert "Tightest spacing" not in all_text(at)
     assert "=====" not in all_text(at)  # none of the command's divider lines leaks onto the page
@@ -705,8 +710,8 @@ def test_a_mixture_is_reported_with_a_warning_box_and_each_verdict():
 
 def test_the_names_of_who_is_affected_are_collapsed_when_there_are_several_schedules():
     at = with_schedule(example(ALL_EIGHT_FILE), gap=2)
-    assert len(at.expander) == 8
-    assert all(box.proto.expanded is False for box in at.expander)
+    assert len(expanders(at)) == 8
+    assert all(box.proto.expanded is False for box in expanders(at))
 
 
 def test_with_more_than_ten_schedules_valid_ones_appear_only_in_the_table():
@@ -731,7 +736,7 @@ def test_ten_schedules_still_get_a_full_write_up_each():
 def test_changing_the_rest_checks_again_at_once():
     at = with_schedule(example(INVALID_FILE))
     assert headings(at) == ["#### ❌ schedule_1: INVALID"]
-    at.number_input[0].set_value(0).run()  # no rest needed: everything passes
+    at.number_input(key="check_gap").set_value(0).run()  # no rest needed: everything passes
     assert headings(at) == ["#### ✅ schedule_1: VALID"]
     assert "Tightest spacing: 0 slots" in all_text(at)
     assert len(at.dataframe) == 0
@@ -803,7 +808,7 @@ def test_an_unexpected_failure_while_checking_shows_no_traceback(monkeypatch):
 def test_warnings_about_the_schedule_file_are_shown_in_full_above_the_results():
     rows = "\n".join(f"{i},{name}" for i, name in enumerate(VALID_ORDER, 1))
     at = with_schedule(f"position,schedule_1\n{rows}\n7,\n")
-    (box,) = at.expander
+    (box,) = expanders(at)
     assert plain(box.markdown[0].value) == (
         '- WARNING: row 8: empty slot in "schedule_1" treated as a break'
     )
@@ -814,7 +819,7 @@ def test_warnings_about_the_schedule_file_are_shown_in_full_above_the_results():
 def test_warnings_about_the_two_files_are_told_apart():
     rows = "\n".join(f"{i},{name}" for i, name in enumerate(VALID_ORDER, 1))
     at = with_schedule(f"position,schedule_1\n{rows}\n7,\n", show=MESSY)
-    assert [box.label for box in at.expander] == [
+    assert [box.label for box in expanders(at)] == [
         "⚠️ 5 things to check in this file",
         "⚠️ 1 thing to check in the schedule file",
     ]
@@ -831,7 +836,7 @@ def test_names_with_markdown_characters_are_shown_as_written_in_the_results():
     (table,) = at.dataframe  # a table shows text as it is
     assert table.value["First performance"][0] == "Jazz $5 [1]"
     assert table.value["Second performance"][0] == "Tap_*x*"
-    (who,) = at.expander
+    (who,) = expanders(at)
     raw = who.markdown[0].value
     assert plain(raw) == "**1. Jazz $5 [1] and Tap_*x***\n\n- Amy_*B*"
     assert "\\$5 \\[1\\]" in raw and "Tap\\_\\*x\\*" in raw  # escaped, so no maths, link or italics
@@ -845,7 +850,7 @@ def test_removing_the_schedule_file_removes_the_results():
     at = with_schedule(example(INVALID_FILE))
     at.file_uploader[1].set_value(None).run()
     assert headings(at) == []
-    assert len(at.dataframe) == 0 and len(at.expander) == 0
+    assert len(at.dataframe) == 0 and len(expanders(at)) == 0
     assert labels(at.download_button) == ["Example file (download)"]
 
 
@@ -884,7 +889,7 @@ def test_clear_all_data_also_forgets_the_schedule_file():
     assert at.file_uploader[1].label == SCHEDULE_LABEL
     assert at.file_uploader[1].value is None  # a fresh upload box, not the old file
     assert headings(at) == []
-    assert at.number_input[0].value == 1
+    assert at.number_input(key="check_gap").value == 1
 
 
 def test_clear_all_data_gives_the_schedule_upload_box_a_new_identity():
@@ -900,3 +905,669 @@ def test_the_checker_keeps_nothing_in_the_pages_memory():
     at = with_schedule(example(INVALID_FILE))
     assert at.session_state["run"] is None and at.session_state["pins"] == {}
     assert at.session_state["form"] == {}
+
+
+# ================================================================ the "Find schedules" tab (U4)
+
+from performance_scheduling.io import format_schedules, schedule_rows
+from performance_scheduling.models import FinderResult, FinderStatus, Issue, Severity
+from performance_scheduling.report import (
+    format_availability,
+    format_found,
+    format_larger_gap_prompt,
+    format_missing,
+    no_schedules_heading,
+)
+from performance_scheduling.solver import SolverNotInstalled, find_schedules
+
+DENSE_FILE = "impossible_dense.csv"
+BOLLYWOOD = "bollywood (open)"
+HIP_HOP = "hip hop (foundations)"
+TAP = "tap (foundations)"
+
+FIND_LABEL = "Find schedules"
+PICK_LABEL = "Which schedules"
+STALE = "Settings changed. Press Find schedules to update."
+NOT_INSTALLED_TEXT = (
+    "The schedule finder is not installed on this computer. Ask whoever set it up to install it."
+)
+
+
+def finder(file_name: str = SHOW_FILE) -> AppTest:
+    return loaded(example(file_name), file_name)
+
+
+def find(at: AppTest) -> AppTest:
+    at.button(key="find_schedules").click().run()
+    assert not at.exception
+    return at
+
+
+def found(file_name: str = SHOW_FILE, **settings) -> AppTest:
+    """Load a show, set widgets by key (gap=..., breaks=..., pick=..., seed=...), press Find."""
+    at = finder(file_name)
+    for name, value in settings.items():
+        widget = at.text_input if name == "pick" else at.number_input
+        widget(key=f"find_{name}").set_value(value)
+    return find(at.run() if settings else at)
+
+
+def pin(at: AppTest, slot: int, item: str) -> AppTest:
+    at.number_input(key="pin_slot").set_value(slot)
+    at.selectbox(key="pin_item").select(item).run()
+    at.button(key="add_pin").click().run()
+    assert not at.exception
+    return at
+
+
+def first_numbers(how_many: int, **settings):
+    data = load_performers(EXAMPLES / SHOW_FILE).data
+    return data, find_schedules(data, count=how_many, **settings)
+
+
+def is_stale(at: AppTest) -> bool:
+    """Is the result greyed with the "Settings changed" line? (`all_text` skips warnings.)"""
+    return STALE in [plain(w.value) for w in at.warning]
+
+
+def table(at: AppTest):
+    (frame,) = at.dataframe
+    return frame.value
+
+
+# ---------------------------------------------------------------- the tab before a search
+
+
+def test_the_finder_tab_holds_the_settings_the_pins_the_pick_and_the_search_button():
+    at = finder()
+    tab = at.tabs[0]
+    assert labels(tab.number_input) == [
+        GAP_LABEL,
+        "Breaks",
+        "Slot",
+        "Shuffle seed",
+        "Most schedules per run",
+        "Longest search, seconds",
+    ]
+    assert [tab.number_input(key=k).value for k in ("find_gap", "find_breaks", "pin_slot")] == [
+        1,
+        0,
+        1,
+    ]
+    assert at.number_input(key="find_seed").value is None
+    assert at.number_input(key="find_limit").value == 100
+    assert at.number_input(key="find_time_limit").value == 30
+    assert at.text_input(key="find_pick").value == "1-5"
+    assert at.selectbox(key="pin_item").value is None
+    assert labels(tab.button) == ["Add pin", "Select all", "Shuffle", "Find schedules"]
+    assert len(at.dataframe) == 0 and at.session_state["run"] is None
+    assert at.tabs[0].expander[0].label == "More options"
+
+
+def test_nothing_is_searched_until_the_button_is_pressed():
+    at = finder()
+    at.number_input(key="find_gap").set_value(2).run()
+    assert at.session_state["run"] is None
+
+
+def test_the_settings_are_a_valid_start_for_a_first_search():
+    at = found()
+    assert [plain(s.value) for s in at.success][-1] == "Found 5 schedules (numbers 1-5)."
+
+
+# ---------------------------------------------------------------- found, more exist
+
+
+def test_a_search_shows_the_commands_sentences_and_a_table_of_the_first_five():
+    at = found()
+    data, result = first_numbers(6)
+    assert plain(at.success[-1].value) == format_found(5, "1-5")
+    assert "More schedules exist after number 5." in all_text(at)
+    header, *rows = schedule_rows(result.schedules[:5], data.performance_names)
+    frame = table(at)
+    assert list(frame.columns) == header
+    assert [list(row) for row in frame.values.tolist()] == rows
+    assert list(frame.columns)[1:] == [f"schedule_{n}" for n in range(1, 6)]
+
+
+def test_every_schedule_shown_is_valid():
+    at = found(pick="all")
+    data = load_performers(EXAMPLES / SHOW_FILE).data
+    shown = at.session_state["run"]["picked"].schedules
+    assert len(shown) == 8  # the show has exactly eight (tiny_feasible_schedules_all8.csv)
+    assert all(check.valid for check in check_schedules(data, shown, 1))
+
+
+def test_the_seed_and_engine_line_names_the_default_order_and_the_version():
+    at = found()
+    caption = [plain(c.value) for c in at.caption][-1]
+    assert caption.startswith("Seed: default order. Search engine: OR-Tools ")
+    assert at.session_state["run"]["version"] in caption
+
+
+def test_a_typed_pick_gives_exactly_those_numbers():
+    at = found(pick="1,4,6")
+    assert list(table(at).columns) == ["position", "schedule_1", "schedule_4", "schedule_6"]
+    assert plain(at.success[-1].value) == format_found(3, "1,4,6")
+
+
+def test_select_all_fills_in_all_and_a_search_lists_everything_up_to_the_limit():
+    at = finder()
+    at.button(key="select_all").click().run()
+    assert at.text_input(key="find_pick").value == "all"
+    find(at)
+    assert plain(at.success[-1].value) == format_found(8, "1-8")
+    assert "There are 8 schedules in all." in all_text(at)
+    assert at.button(key="show_next") if False else not [b for b in at.button if "next" in b.label]
+
+
+# ---------------------------------------------------------------- shuffle and seed
+
+
+def test_shuffle_puts_a_whole_number_in_the_seed_box(monkeypatch):
+    monkeypatch.setattr("random.randint", lambda low, high: 4242)
+    at = finder()
+    at.button(key="shuffle").click().run()
+    assert at.number_input(key="find_seed").value == 4242
+
+
+def test_a_seed_gives_the_same_list_as_the_command_and_names_the_file():
+    at = found(seed=7)
+    data, result = first_numbers(6, seed=7)
+    assert [list(r) for r in table(at).values.tolist()] == schedule_rows(
+        result.schedules[:5], data.performance_names
+    )[1:]
+    assert [plain(c.value) for c in at.caption][-1].startswith("Seed: 7. Search engine")
+
+
+def test_the_same_seed_twice_gives_the_same_table():
+    one = table(found(seed=3)).values.tolist()
+    two = table(found(seed=3)).values.tolist()
+    assert one == two
+
+
+# ---------------------------------------------------------------- downloads
+
+
+def offered_downloads(monkeypatch) -> list[dict]:
+    """Record what the page hands to `st.download_button` (AppTest does not keep the bytes)."""
+    from streamlit.delta_generator import DeltaGenerator
+
+    offered: list[dict] = []
+    real = DeltaGenerator.download_button
+
+    def spy(self, label, data=None, file_name=None, mime=None, **kwargs):
+        offered.append({"label": label, "data": data, "file_name": file_name, "mime": mime})
+        return real(self, label, data=data, file_name=file_name, mime=mime, **kwargs)
+
+    monkeypatch.setattr(DeltaGenerator, "download_button", spy)
+    return offered
+
+
+def schedules_offered(offered: list[dict]) -> dict:
+    (one,) = [d for d in offered if d["label"] == "Download these schedules (CSV)"]
+    return one
+
+
+def test_the_download_is_the_commands_csv_named_by_seed_and_pick(monkeypatch):
+    offered = offered_downloads(monkeypatch)
+    at = found(seed=5, pick="2-3")
+    data, result = first_numbers(4, seed=5)
+    assert [s.name for s in at.session_state["run"]["picked"].schedules] == [
+        "schedule_2",
+        "schedule_3",
+    ]
+    download = schedules_offered(offered)
+    expected = format_schedules(result.schedules[1:3], data.performance_names)
+    assert expected.splitlines()[0] == "position,schedule_2,schedule_3"
+    assert download["data"] == expected.encode("utf-8-sig")  # with Excel's byte-order mark
+    assert download["file_name"] == "schedules_seed5_2-3.csv"
+    assert download["mime"] == "text/csv"
+
+
+def test_without_a_seed_the_file_is_named_by_the_pick_alone(monkeypatch):
+    offered = offered_downloads(monkeypatch)
+    found()
+    assert schedules_offered(offered)["file_name"] == "schedules_1-5.csv"
+
+
+def test_the_downloaded_file_goes_straight_to_the_schedule_checker(monkeypatch):
+    offered = offered_downloads(monkeypatch)
+    found()
+    csv_bytes = schedules_offered(offered)["data"]
+    at = with_schedule(csv_bytes, "schedules_1-5.csv")
+    assert [plain(s.value) for s in at.success][-1] == format_totals(
+        check_schedules(
+            load_performers(EXAMPLES / SHOW_FILE).data,
+            load_schedules_from_bytes(csv_bytes),
+            1,
+        )
+    )
+
+
+def load_schedules_from_bytes(raw: bytes):
+    from performance_scheduling.io import decode_text, parse_schedules
+
+    return parse_schedules(decode_text(raw, "x.csv")).schedules
+
+
+# ---------------------------------------------------------------- show the next batch
+
+
+def test_show_the_next_five_searches_again_and_skips_what_came_before():
+    at = found()
+    next_button = at.button(key="show_next")
+    assert next_button.label == "Show the next 5"
+    next_button.click().run()
+    assert not at.exception
+    assert at.text_input(key="find_pick").value == "6-10"
+    assert plain(at.success[-1].value) == format_found(3, "6-8")
+    assert list(table(at).columns) == ["position", "schedule_6", "schedule_7", "schedule_8"]
+    assert "There are 8 schedules in all." in all_text(at)
+    assert not [b for b in at.button if b.label.startswith("Show the next")]
+
+
+def test_the_next_batch_is_the_same_numbers_as_the_command_would_write():
+    at = found(pick="1-3")
+    assert at.button(key="show_next").label == "Show the next 3"
+    at.button(key="show_next").click().run()
+    assert at.text_input(key="find_pick").value == "4-6"
+    assert list(table(at).columns)[1:] == ["schedule_4", "schedule_5", "schedule_6"]
+
+
+def test_a_single_schedule_batch_says_so():
+    at = found(pick="1")
+    assert at.button(key="show_next").label == "Show the next schedule"
+
+
+def test_the_button_is_not_shown_when_no_more_exist():
+    at = found(pick="4-8")
+    assert at.button(key="show_next") if False else not [
+        b for b in at.button if b.label.startswith("Show the next")
+    ]
+    assert "There are 8 schedules in all." in all_text(at)
+
+
+def test_numbers_past_the_end_are_named_as_missing():
+    at = found(pick="7-10")
+    assert plain(at.success[-1].value) == format_found(2, "7-8")
+    assert format_missing("9-10", 2, stopped=False, total=8) in [
+        plain(w.value) for w in at.warning
+    ]
+
+
+def test_a_pick_entirely_past_the_end_shows_only_what_is_missing():
+    at = found(pick="9-10")
+    assert len(at.dataframe) == 0
+    assert [plain(w.value) for w in at.warning] == [
+        format_missing("9-10", 2, stopped=False, total=8)
+    ]
+    assert len(at.error) == 0
+
+
+# ---------------------------------------------------------------- a larger gap
+
+
+def test_the_larger_gap_invitation_is_the_commands_and_the_button_names_the_gap():
+    at = found()
+    assert format_larger_gap_prompt(1) in all_text(at)
+    assert at.button(key="try_gap").label == "Try a gap of 2"
+
+
+def test_try_a_larger_gap_changes_the_gap_and_searches_at_once():
+    at = found()
+    at.button(key="try_gap").click().run()
+    assert not at.exception
+    assert at.number_input(key="find_gap").value == 2
+    assert at.session_state["run"]["settings"]["gap"] == 2
+    assert not is_stale(at)
+
+
+def test_nothing_is_checked_before_the_larger_gap_is_tried():
+    # This show has 8 schedules with a gap of 1 and none with a gap of 2. The page offers
+    # the larger gap anyway (D16) and the finder's own answer follows when it is pressed.
+    at = found()
+    assert at.button(key="try_gap").label == "Try a gap of 2"
+    assert len(at.error) == 0
+    at.button(key="try_gap").click().run()
+    assert plain(at.error[-1].value).startswith("**" + no_schedules_heading(FinderStatus.EXHAUSTED))
+    assert not [b for b in at.button if b.key == "try_gap"]  # nothing found, nothing to invite
+
+
+# ---------------------------------------------------------------- none exist
+
+
+def test_when_none_exist_a_red_box_gives_the_finders_reasons_unchanged():
+    at = found(DENSE_FILE)
+    data = load_performers(EXAMPLES / DENSE_FILE).data
+    reasons = find_schedules(data, count=2).explanation
+    (box,) = at.error
+    text = plain(box.value)
+    assert text.startswith("**No schedule exists.**")
+    assert all(issue.message in text for issue in reasons)
+    assert len(at.dataframe) == 0 and len(at.success) == 1  # only the file's status line
+    assert not [d for d in at.download_button if d.label.startswith("Download these")]
+    assert not [b for b in at.button if b.key in ("show_next", "try_gap", "search_longer")]
+    assert len(at.warning) == 0
+
+
+# ---------------------------------------------------------------- stopped
+
+
+def stopped_result(schedules=()):
+    note = Issue(Severity.WARNING, "The time limit of 30 seconds was reached.")
+    return FinderResult(FinderStatus.STOPPED, tuple(schedules), explanation=(note,))
+
+
+def test_a_search_stopped_with_nothing_found_gets_a_yellow_box_never_none_exist(monkeypatch):
+    monkeypatch.setattr(
+        "performance_scheduling.solver.find_schedules", lambda *a, **k: stopped_result()
+    )
+    at = found()
+    (box,) = at.warning
+    text = plain(box.value)
+    assert text.startswith("**No schedule was found before the time limit.**")
+    assert "The time limit of 30 seconds was reached." in text
+    assert "No schedule exists" not in all_text(at)
+    assert len(at.error) == 0
+
+
+def test_search_for_longer_doubles_the_time_limit_and_searches_again(monkeypatch):
+    seen = []
+
+    def fake(*args, **kwargs):
+        seen.append(kwargs["time_limit"])
+        return stopped_result()
+
+    monkeypatch.setattr("performance_scheduling.solver.find_schedules", fake)
+    at = found()
+    at.button(key="search_longer").click().run()
+    assert seen == [30.0, 60.0]
+    assert at.number_input(key="find_time_limit").value == 60
+
+
+def test_a_stopped_search_that_found_some_says_more_may_exist(monkeypatch):
+    real = find_schedules
+
+    def fake(data, **kwargs):
+        part = real(data, count=2)
+        return stopped_result(part.schedules)
+
+    monkeypatch.setattr("performance_scheduling.solver.find_schedules", fake)
+    at = found()
+    assert plain(at.success[-1].value) == format_found(2, "1-2")
+    assert format_availability(None, total=None, produced=2, last_number=2) in [
+        plain(w.value) for w in at.warning
+    ]
+    assert at.button(key="search_longer")
+    assert not [b for b in at.button if b.label.startswith("Show the next")]
+
+
+# ---------------------------------------------------------------- bad picks
+
+
+@pytest.mark.parametrize("pick", ["", "a", "1,,3", "0", "4-1", "1-1000"])
+def test_a_bad_pick_gets_a_plain_message_and_the_search_does_not_run(pick):
+    at = finder()
+    at.text_input(key="find_pick").set_value(pick).run()
+    assert len(at.error) == 1
+    assert at.error[0].value  # a sentence, with an example where the shared reader gives one
+    find(at)
+    assert at.session_state["run"] is None
+    assert len(at.dataframe) == 0
+
+
+def test_a_pick_longer_than_the_limit_is_refused_and_a_higher_limit_allows_it():
+    at = finder()
+    at.text_input(key="find_pick").set_value("1-150").run()
+    assert "the most allowed at once is 100" in plain(at.error[0].value)
+    at.number_input(key="find_limit").set_value(200).run()
+    assert len(at.error) == 0
+
+
+def test_the_message_goes_away_when_the_pick_is_mended():
+    at = finder()
+    at.text_input(key="find_pick").set_value("x").run()
+    assert len(at.error) == 1
+    at.text_input(key="find_pick").set_value("1-2").run()
+    assert len(at.error) == 0
+
+
+# ---------------------------------------------------------------- pins
+
+
+def test_pinning_lists_the_pin_with_a_remove_button():
+    at = pin(finder(), 3, BOLLYWOOD)
+    assert at.session_state["pins"] == {3: BOLLYWOOD}
+    assert "Slot 3: Bollywood (Open)" in all_text(at)
+    assert at.button(key="remove_pin_3").label == "Remove"
+
+
+def test_add_pin_waits_for_an_item():
+    at = finder()
+    assert at.button(key="add_pin").disabled
+
+
+def test_a_break_can_be_pinned_and_reads_as_a_break():
+    at = pin(finder(), 2, "BREAK")
+    assert "Slot 2: a break" in all_text(at)
+
+
+def test_the_item_list_is_the_shows_performances_plus_break():
+    at = finder()
+    names = at.session_state["show"].data.performance_names
+    assert at.selectbox(key="pin_item").options == ["Break", *sorted(names.values(), key=str.casefold)]
+
+
+def test_the_slot_runs_from_one_to_the_number_of_slots():
+    at = finder()
+    slot = at.number_input(key="pin_slot")
+    assert (slot.min, slot.max) == (1, 6)
+    at.number_input(key="find_breaks").set_value(2).run()
+    assert at.number_input(key="pin_slot").max == 8
+
+
+def test_pinning_onto_a_taken_slot_replaces_it_and_pinning_again_moves_it():
+    at = pin(finder(), 1, BOLLYWOOD)
+    pin(at, 1, TAP)
+    assert at.session_state["pins"] == {1: TAP}
+    pin(at, 4, TAP)
+    assert at.session_state["pins"] == {4: TAP}
+
+
+def test_removing_a_pin_removes_it():
+    at = pin(pin(finder(), 1, BOLLYWOOD), 2, HIP_HOP)
+    at.button(key="remove_pin_1").click().run()
+    assert at.session_state["pins"] == {2: HIP_HOP}
+
+
+def test_a_search_keeps_the_pins_the_table_marks_them_and_the_finder_honours_them():
+    at = find(pin(finder(), 1, BOLLYWOOD))
+    frame = table(at)
+    assert frame["position"][0] == "1 (pinned)"
+    assert all(frame[col][0] == "Bollywood (Open)" for col in frame.columns[1:])
+    assert at.session_state["run"]["settings"]["pins"] == ((1, BOLLYWOOD),)
+
+
+def test_breaks_are_shown_as_break_in_the_table():
+    at = found(breaks=1)
+    cells = [cell for row in table(at).values.tolist() for cell in row[1:]]
+    assert cells.count("BREAK") == 5  # one break in each of five schedules
+
+
+def test_pins_that_cannot_be_kept_together_get_a_red_box_and_are_marked_in_the_list():
+    at = find(pin(pin(finder(), 1, BOLLYWOOD), 2, HIP_HOP))
+    assert plain(at.error[-1].value).startswith("**No schedule exists.**")
+    text = all_text(at)
+    assert text.count("These cannot all be kept") == 2
+    assert "Slot 1: Bollywood (Open) ⚠️ These cannot all be kept" in text
+
+
+def test_pins_that_do_not_fit_the_show_are_explained_by_the_finder():
+    at = pin(finder(), 1, "BREAK")  # but the show has no breaks
+    find(at)
+    assert "pinned as breaks" in plain(at.error[-1].value)
+    assert "These cannot all be kept" not in all_text(at)
+
+
+def test_the_marks_go_when_the_pins_change():
+    at = find(pin(pin(finder(), 1, BOLLYWOOD), 2, HIP_HOP))
+    at.button(key="remove_pin_2").click().run()
+    assert "These cannot all be kept" not in all_text(at)
+
+
+# ---------------------------------------------------------------- stale results
+
+
+def changing(widget_kind: str, key: str, value):
+    def change(at: AppTest) -> None:
+        getattr(at, widget_kind)(key=key).set_value(value).run()
+
+    return change
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        changing("number_input", "find_gap", 2),
+        changing("number_input", "find_breaks", 1),
+        changing("text_input", "find_pick", "1-3"),
+        changing("number_input", "find_seed", 9),
+        changing("number_input", "find_limit", 50),
+        changing("number_input", "find_time_limit", 10),
+    ],
+    ids=["gap", "breaks", "pick", "seed", "limit", "time limit"],
+)
+def test_changing_any_setting_greys_the_result_and_says_so(change):
+    at = found()
+    assert not is_stale(at) and not at.warning
+    change(at)
+    assert [plain(w.value) for w in at.warning] == [STALE]
+    assert len(at.dataframe) == 1  # still shown, never silently replaced
+    for key in ("show_next", "try_gap"):
+        assert at.button(key=key).disabled
+    assert next(d for d in at.download_button if d.label.startswith("Download these")).disabled
+
+
+def test_adding_a_pin_makes_the_result_stale_too():
+    at = pin(found(), 1, BOLLYWOOD)
+    assert is_stale(at)
+
+
+def test_changing_a_setting_back_makes_the_result_current_again():
+    at = found()
+    at.number_input(key="find_gap").set_value(2).run()
+    at.number_input(key="find_gap").set_value(1).run()
+    assert not is_stale(at)
+    assert not at.button(key="try_gap").disabled
+
+
+def test_pressing_find_again_brings_the_result_up_to_date():
+    at = found()
+    at.text_input(key="find_pick").set_value("1-3").run()
+    find(at)
+    assert not is_stale(at)
+    assert plain(at.success[-1].value) == format_found(3, "1-3")
+
+
+def test_the_result_stays_current_when_nothing_changes():
+    at = found()
+    at.run()
+    assert not is_stale(at)
+
+
+# ---------------------------------------------------------------- when something goes wrong
+
+
+def test_without_ortools_the_page_says_so_with_the_command_in_a_small_box(monkeypatch):
+    def missing():
+        raise SolverNotInstalled('The schedule finder needs OR-Tools. Install it with: pip install -e ".[finder]"')
+
+    monkeypatch.setattr("performance_scheduling.solver.solver_version", missing)
+    at = found()
+    (box,) = at.error
+    assert box.value == NOT_INSTALLED_TEXT
+    (details,) = [e for e in expanders(at) if e.label == "What to give them"]
+    assert "pip install" in details.code[0].value
+    assert len(at.dataframe) == 0
+
+
+def test_an_internal_check_failure_says_nothing_was_shown_and_keeps_the_details(monkeypatch):
+    def broken(*_args, **_kwargs):
+        raise RuntimeError("schedule_1 failed the checker")
+
+    monkeypatch.setattr("performance_scheduling.solver.find_schedules", broken)
+    at = found()
+    (box,) = at.error
+    assert box.value == "Something went wrong inside the finder, and no schedule was shown."
+    (details,) = [e for e in expanders(at) if e.label.startswith("Details")]
+    assert details.code[0].value == "schedule_1 failed the checker"
+    assert len(at.dataframe) == 0
+
+
+def test_anything_else_unexpected_gives_a_short_message_without_a_traceback(monkeypatch):
+    def boom(*_args, **_kwargs):
+        raise ValueError("secret detail naming Amy")
+
+    monkeypatch.setattr("performance_scheduling.solver.find_schedules", boom)
+    at = found()
+    (box,) = at.error
+    assert box.value.startswith("Something unexpected went wrong while searching")
+    assert "Amy" not in box.value and "secret" not in box.value
+    assert len(at.exception) == 0
+
+
+def test_a_failure_goes_when_the_search_is_run_again(monkeypatch):
+    monkeypatch.setattr(
+        "performance_scheduling.solver.find_schedules",
+        lambda *a, **k: (_ for _ in ()).throw(RuntimeError("x")),
+    )
+    at = found()
+    monkeypatch.undo()
+    find(at)
+    assert len(at.error) == 0 and plain(at.success[-1].value) == format_found(5, "1-5")
+
+
+# ---------------------------------------------------------------- names, files and the session
+
+
+def test_names_with_markdown_characters_show_as_written_in_the_pin_list_and_table():
+    text = "who,what\nAmy,Jazz $5 [1]\nBen,Tap_*B*\nCat,Hip Hop\n"
+    at = loaded(text)
+    names = at.session_state["show"].data.performance_names
+    key = next(k for k, v in names.items() if v.startswith("Jazz"))
+    pin(at, 1, key)
+    assert "Slot 1: Jazz $5 [1]" in all_text(at)
+    find(at)
+    assert "Jazz $5 [1]" in table(at).values.tolist()[0]
+
+
+def test_a_new_performer_file_clears_the_result_the_pins_and_the_settings():
+    at = find(pin(finder(), 1, BOLLYWOOD))
+    at.number_input(key="find_gap").set_value(2).run()
+    upload(at, GOOD, "another.csv")
+    assert at.session_state["run"] is None and at.session_state["pins"] == {}
+    assert at.number_input(key="find_gap").value == 1
+    assert at.text_input(key="find_pick").value == "1-5"
+    assert len(at.dataframe) == 0
+
+
+def test_clear_all_data_clears_the_finder_too():
+    at = find(finder())
+    at.button[0].click().run()
+    assert at.session_state["run"] is None and len(at.tabs) == 0
+    upload(at, example(SHOW_FILE), SHOW_FILE)
+    assert at.session_state["run"] is None and len(at.dataframe) == 0
+
+
+def test_the_finder_and_the_checker_do_not_disturb_each_other():
+    at = find(finder())
+    at.tabs[1].number_input(key="check_gap").set_value(2).run()
+    assert not is_stale(at)
+    assert at.number_input(key="find_gap").value == 1
+
+
+def test_the_page_writes_nothing_to_disk(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    find(finder())
+    assert list(tmp_path.iterdir()) == []

@@ -6,7 +6,7 @@
 
 - **Errors** stop the file or search. On the page they are in a red box; the commands print them under a heading such as "Could not check the schedule:" and exit.
 - **Warnings** do not stop anything. The page lists them in a box titled "N things to check"; the commands print them and ask you to review them.
-- Each starts with `ERROR:` or `WARNING:` in the commands, and with `row N:` when it is about one row (the header is row 1, as in your spreadsheet).
+- Each one starts with `ERROR:` or `WARNING:` (in the commands and in the page's lists), and then with `row N:` when it is about one row (the header is row 1, as in your spreadsheet).
 - A `…` below stands for a value that is filled in when you see the message: a name, a number or a list. The messages are shown in full words as they appear, apart from that.
 - Messages never include a traceback. They include the names that are in your own file, so treat a copied message as personal data (`data-privacy.md`).
 

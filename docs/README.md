@@ -45,6 +45,8 @@ The schedules are written to `output/` (created if missing) in a file named afte
 
 ## Using the page
 
+New to this? The step-by-step [user guide](docs/user-guide.md) takes you from a spreadsheet to a downloaded schedule.
+
 The page does what the two commands do, in a browser, for people who prefer not to use a command line. It runs on your own computer and keeps your data in memory only (nothing is saved, nothing is sent anywhere).
 
 **Windows:** double-click `run_app.bat` in the project folder. A window opens and, a few seconds later, so does your browser. Keep the window open while you work; close it to stop the page. If the browser does not open, go to <http://localhost:8501>.

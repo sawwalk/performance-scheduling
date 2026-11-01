@@ -12,7 +12,7 @@
 - **Schedule finder:** done (`schedule-finder` command). Search engine is OR-Tools CP-SAT (9.15.6755; `pyproject.toml` asks for `>=9.15,<10`). It does pre-checks, lists schedules, cross-checks each one with the checker, explains why none exist, names pins that cannot all be kept, and honours a time limit.
 - **The page:** done and tested with Streamlit's `AppTest` (Streamlit 1.66.1; `pyproject.toml` asks for `>=1.66,<2`). Tasks U1 to U5 are finished. Start it by double-clicking `run_app.bat` (Windows), or run `streamlit run src/performance_scheduling/app.py` from the project folder. It shows the "Find schedules" and "Check a schedule" tabs.
 - **Tests:** 613 passing and ruff clean in my sandbox (Linux, Python 3.12). The 604 before D2 also passed on your Windows machine.
-- **Still to do:** nothing in the code. The manual checklist (`ui-design.md` section 11) was run in a real browser on 2026-10-31 and everything worked. `data-privacy.md`, `error-messages.md` and `user-guide.md` are written (the guide still needs four screenshots). Left: `testing-strategy.md` (D1), a fresh-clone test of the setup steps, and the optional tasks M1 to M3. See `task-plan.md`.
+- **Still to do:** nothing in the code. The manual checklist (`ui-design.md` section 11) was run in a real browser on 2026-10-31 and everything worked. `data-privacy.md`, `error-messages.md` and `user-guide.md` are written (the guide has four screenshots in `docs/images/`). Left: `testing-strategy.md` (D1), fixes from a fresh-clone test of the setup steps (F1), and M1 (refresh the "Rough" results in `test-datasets.md`). M2 and M3 were dropped (D63). **`task-plan.md` section 0 is the handover: read it first.**
 
 ## Code layout
 

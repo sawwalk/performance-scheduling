@@ -4,7 +4,7 @@
 
 ## What this does
 
-A show has many performances, and many performers are in more than one. This page helps you choose the **running order** so that nobody has to perform again too soon. It does two jobs:
+A show has many performances, and many performers are in more than one performance. This page helps you choose the **running order** so that nobody has to perform again too soon. It does two jobs:
 
 - **Find schedules:** it works out running orders for you.
 - **Check a schedule:** you give it a running order you made yourself, and it tells you who would not get enough rest.
@@ -90,7 +90,7 @@ Open the **Find schedules** tab. The settings are:
 |---|---|---|
 | **Rest between a performer's performances (slots)** | The rest described above. | 1 |
 | **Breaks** | How many breaks the show has. A break counts as a slot and gives rest. | 0, or your real number of intervals and guest acts |
-| **Pins (optional)** | Fix a performance, or a break, to a slot. For example "Bollywood (Open) must open the show". Pick the slot, pick the item from the list (it includes **Break**), press **Add pin**. **Remove** takes it away. | none |
+| **Pins (optional)** | Fix a performance, or a break, to a slot. For example "Bollywood (Open) must open the show". Pick the slot, pick the item from the list (it includes **Break**), press **Add pin**. **Remove** takes it away. (If you want a break to count as 2 slots then pin 2 next to each other) | none |
 | **Which schedules** | Which of the numbered list of schedules to show. `1-5` is the first five. You can write `6-10`, `1,4,9` or `all`. | 1-5 |
 | **More options** | A shuffle seed (section 4.3), the most schedules per run (100), and the longest search in seconds (30). | leave alone |
 

@@ -55,4 +55,5 @@ Each step ends with tests passing and a commit.
 - [x] U5, launcher (`run_app.bat`), `ui` extra version range, README, manual checklist in `ui-design.md` section 11 (D57). The checklist was run in a real browser on 2026-10-31 and everything worked
 - [x] `data-privacy.md` (task D3, D59)
 - [x] `error-messages.md`, `list_messages.py` and `tests/test_error_messages.py` (task D2, D60)
-- [x] `user-guide.md`, and a link to it from the README (task D4, D62). Four screenshots are still to be added (marked in the file)
+- [x] M2 and M3 dropped (D63); handover written as `docs/task-plan.md` section 0
+- [x] `user-guide.md`, and a link to it from the README (task D4, D62). Four screenshots added from the running page

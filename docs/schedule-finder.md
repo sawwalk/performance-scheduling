@@ -66,8 +66,8 @@ The solver proves "no schedule exists" in a fraction of a second in the experime
 
 **Scale note.** 20 performances can be ordered in an astronomically large number of ways.
 With few conflicts the number of valid schedules is enormous, so "all schedules" is only
-realistic once enough items are pinned. The tool can show a count capped at a limit
-("at least 10,000") rather than attempting to count everything.
+realistic once enough items are pinned. The tool does not count schedules; it lists the
+ones you ask for (D63).
 
 **What to expect from the order.** Neighbouring schedules in the list still look alike: in the
 experiment, neighbouring schedules differed in about 3 slots out of 20. To see more varied options, pin

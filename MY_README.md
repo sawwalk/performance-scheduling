@@ -59,6 +59,7 @@ README.md:
 - Out of scope (for now) section
 - models.py line 30: "The loader also rejects any performance
  called "break" (in any capitalisation) so the two can never be confused in a file."
+- Tune the _similar_pairs function parameters that affect when the program believes two names are too similar. Potentially add a recommended names to merge step to the user before automatically merging.
 
 Design decisions:
 - add how the schedule finder and checker handles a performance with no performers (state a warning and the effect on the output)
@@ -67,4 +68,10 @@ Design decisions:
 **Things to learn from this project:**
 - what pytest is and how it connects to pyproject.toml and tests folder. Is the test configuration specified in pyproject.toml?
 
-tar -a -c -f C:\Users\samww\Documents\personal_projects\performance-scheduling.zip --exclude=MY_README.md --exclude=.vscode --exclude=.venv --exclude=.git --exclude=data/private --exclude=__pycache__ --exclude=.pytest_cache --exclude=.ruff_cache * 
+schedule-finder --performers "data/private/2026 S2 performer data-anonymous.csv" --gap 2 --pick 1-5
+
+README.md was designed to be located in the docs folder, every link was doc_name.md instead of docs/doc_name.md. Should it be kept here or moved to the root of the repo?
+
+Everything works well in my cloned repo, I have no issues with the user-guide. I need to check if instructions on downloading python or other dependencies are needed in the user-guide. What happens if a user clickes app.bat without dependencies like python already installed on their computer? Are there any other dependencies that need to be installed? 
+
+I plan to create video tutorial to download the app, download data and walk through the schedule finder and checker. The video will serve as a high level overview while The user-guide can serve as a in deapth support for the video tutorial.

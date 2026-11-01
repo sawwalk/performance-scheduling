@@ -1,281 +1,176 @@
-# Task plan and context guide
+# Task plan and handover
 
-**Status:** DRAFT (2026-10-19). Token figures are estimates (characters divided by 4) for the files as they stand today.
+**Status:** UPDATED 2026-10-31 for a handover to a new chat. Token figures are estimates (characters divided by 4) for the files as they stand on that date. Everything in the plan up to the user guide is finished; section 3 lists what is left.
+
+## 0. Read this first (handover)
+
+**The project.** Two tools that help a dance-show organiser order the performances so that nobody performs again too soon: a **schedule checker** (tests a running order) and a **schedule finder** (finds running orders, with pins and breaks). Both are used from the command line or from a Streamlit page started by `run_app.bat`. The code is in `src/performance_scheduling/`, the developer tools in `scripts/`, the tests in `tests/`, and the documents in `docs/`. The entry point for any task is `docs/project-brief.md`.
+
+**Where it stands (2026-10-31).**
+- All code is finished: checker, finder (OR-Tools CP-SAT), the page (`app.py`), the launcher and packaging.
+- 613 tests pass and `ruff check src tests scripts` is clean (tested on Linux, Python 3.12, Streamlit 1.66.1, OR-Tools 9.15.6755). The owner runs Windows (cmd and the VS Code terminal with a `.venv`); the first 604 tests passed there too.
+- The manual checklist in `docs/ui-design.md` section 11 was run by the owner in a real browser, and everything worked.
+- Documents finished: the data-privacy rules (D59), the message catalogue and its check (D60), the user guide with four screenshots (D62).
+- Decisions D1 to D63 are in `docs/design-decisions.md`; no questions are open. **The next decision number is D64.**
+
+**What is left.** Three small things, section 3: **F1** fixes from the owner's fresh-clone test (in progress), **D1** `testing-strategy.md`, **M1** refresh the "Rough" results in `test-datasets.md`. The owner dropped M2 and M3 (D63).
+
+**Tasks already done.**
+
+| ID | Task | Decisions |
+|---|---|---|
+| U1 | Core additions the UI needs (seven helpers) | D50 to D52 |
+| U2 | App skeleton and the "Your show" section | D48, D49, D53, D54 |
+| U3 | "Check a schedule" tab | D55 |
+| U4 | "Find schedules" tab | D56 |
+| U5 | Launcher (`run_app.bat`), packaging, manual checklist | D57 |
+| D2 | `error-messages.md`, `scripts/list_messages.py` and its test | D60, D61 |
+| D3 | `data-privacy.md` | D58, D59 |
+| D4 | `user-guide.md` and screenshots | D62 |
+
+**Rules that keep the project true. Follow them in every task.**
+1. **A new message needs a catalogue row.** Any new user-facing message (an `Issue`, a `raise`, an `st.error` and so on) must get a row in `docs/error-messages.md`. `python scripts/list_messages.py --check` and `tests/test_error_messages.py` fail otherwise. The rules for what counts as a message are at the top of `scripts/list_messages.py`.
+2. **Regenerate the API summary** after changing a public name: `python scripts/make_api_summary.py > docs/api-summary.md`.
+3. **Wording lives in the shared layer** (`report.py`, `io.py`, `selection.py`), so the commands and the page cannot disagree (D26, D46). The tests that check wording are exact on purpose.
+4. **`app.py` is the only file that imports Streamlit** and never imports `cli` (D48). The layer order is in `docs/repo-structure.md`.
+5. **Privacy (D59).** Never ask for, open or paste real performer data. It lives in `data/private/`. Use the synthetic files in `data/examples/`. The page keeps data in memory only and runs on one computer.
+6. **Record every decision** as the next D-number in `docs/design-decisions.md`, and tick the roadmap (`docs/development-roadmap.md`).
+
+**Working with the owner** (the full list is "How to work with me" in `project-brief.md`). In short: explain things plainly; plan first, then code, in small steps; say why before adding a new file; ask at most one question at a time, with a recommendation; say what you did not verify; end every step with the exact list of files to copy and where they go. Use British spelling ("organiser", "colour"). Run `pytest` and `ruff` yourself.
+
+**Known loose ends** (none block anything).
+- `ruff format` is not used: most files would be reformatted. Only `ruff check` is enforced.
+- One session key, `form`, listed in `ui-design.md` section 4.5 is unused (D56).
+- Not verified: that the page makes no outgoing network connection other than usage statistics, which are off (`data-privacy.md` section 4); the launcher's behaviour on a Windows machine without the project set up.
 
 ## 1. Keeping chats cheap
 
-1. **Do not attach files to your messages.** An attached file becomes part of the conversation text, and every later turn carries it. This chat's first message held the whole project (docs, source, tests and the notebook), roughly 80,000 tokens. Files kept in the Project appear to me only as a list of paths, and I read the ones a task needs.
-2. **Only what I read counts.** I can copy the Project's files into my sandbox, rebuild the folders, and run the whole test suite there, and none of that enters the conversation. So each task card has a **Read** list (its cost) and a **Run** line (free).
-3. **One task per chat.** Start from the template in section 2 and end with the list of files to copy. Start the next task in a new chat.
-4. **Keep the Project current.** After each step, replace the old versions of the changed files in the Project with the new ones. I rebuild the folder layout from the flat copies.
-5. **Regenerate `docs/api-summary.md`** after any step that changes a public name: `python scripts/make_api_summary.py > docs/api-summary.md`. It is built from the code, so it cannot drift.
+1. **The project arrives as a zip.** Unzip it in the sandbox and read only the files in the task's **Read** list. Do not paste whole files into the conversation, because every later turn carries them.
+2. **Run things instead of reading them.** The whole suite runs in the sandbox without entering the conversation. The test files are never read unless a task edits one.
+3. **One task per chat.** Start from the template in section 2. End with the list of files to copy.
+4. **Keep the zip current.** The owner replaces the changed files after each step and re-zips for the next chat.
+5. **What the owner leaves out of the zip:** `.venv/`, `data/private/`, `output/`, `__pycache__/` and `*.egg-info/`. If `data/private/` is in the zip anyway, do not open it.
 
 ## 2. Starting message for a task
 
-    Task U1 from docs/task-plan.md.
-    Read docs/project-brief.md and the "Read" list in the task card, and nothing else
-    unless you tell me why first. Run the whole test suite in your sandbox before and
-    after your changes.
-    <any answers to open questions, for example: Q16 (a) only me; Q17 guided form>
+    Task D1 from docs/task-plan.md.
+    Unzip the project. Read docs/task-plan.md section 0 and the D1 card, then docs/project-brief.md
+    and the "Read" list in the card, and nothing else unless you tell me why first.
+    Set up a .venv in your sandbox (pip install -e ".[dev]") and run the whole test suite before
+    and after your changes.
+    <any answers to open questions>
 
-The card itself is about 400 tokens, so I read just that section of this file, not the whole of it.
+## 3. The tasks
 
-## 3. Context menu
-
-| File | Approx. tokens |
-|---|---|
-| `docs/project-brief.md` | 1,544 |
-| `docs/api-summary.md` | 2,335 |
-| `docs/ui-design.md` | 3,737 |
-| `docs/design-decisions.md` | 4,306 |
-| `docs/schedule-finder.md` | 3,933 |
-| `docs/schedule-checker.md` | 1,695 |
-| `docs/search-approaches.md` | 2,546 |
-| `docs/input-data.md` | 1,795 |
-| `docs/data-model.md` | 1,496 |
-| `docs/repo-structure.md` | 1,134 |
-| `docs/test-datasets.md` | 1,326 |
-| `docs/problem-statement.md` | 828 |
-| `docs/development-roadmap.md` | 803 |
-| `docs/environment.md` | 594 |
-| `src/io.py` | 7,264 |
-| `src/solver.py` | 5,476 |
-| `src/cli.py` | 4,247 |
-| `src/models.py` | 2,864 |
-| `src/report.py` | 2,670 |
-| `src/selection.py` | 2,140 |
-| `src/validator.py` | 1,572 |
-| `src/conflicts.py` | 504 |
-
-For comparison: all docs about 28,072, all source about 26,737, all tests about 27,441. The test files are never needed in the conversation, because I run them rather than read them (the exception is a task that edits a test file, which says so).
-
-## 4. The tasks
-
-Suggested order: answer Q16 and Q17, then U1 to U5 in order. D1 to D3 and M1 can be done at any time, each in its own chat. D4 comes last.
+Suggested order: F1 (the owner is doing the test now), then D1 and M1 in any order. Each card is about 400 tokens.
 
 | ID | Task | Read cost | Needs first |
 |---|---|---|---|
-| U1 | Core additions the UI needs | about 9,454 tokens | Q17 answered (it does not change U1, but U1 comes first) |
-| U2 | App skeleton and the "Your show" section | about 7,616 tokens | U1 |
-| U3 | "Check a schedule" tab | about 7,812 tokens | U2 |
-| U4 | "Find schedules" tab | about 11,768 tokens | U3, Q17 answered |
-| U5 | Launcher, packaging and the manual checklist | about 3,477 tokens | U4, Q16 answered |
-| D1 | `testing-strategy.md` | about 3,597 tokens | - (best after U4, so the page tests are included) |
-| D2 | `error-messages.md` | about 8,879 tokens | - |
-| D3 | `data-privacy.md` | about 1,977 tokens | Q16 answered |
-| D4 | `user-guide.md` | about 7,236 tokens | U4 (and D2 for the message wording) |
-| M1 | Refresh the "Rough" results in `test-datasets.md` | about 5,205 tokens | - |
-| M2 | Optional: a capped count ("at least 10,000") | about 9,655 tokens | U4 (decide once you have seen the page) |
-| M3 | Optional: a 40-performance scale test | about 3,982 tokens | - |
+| F1 | Fixes from the fresh-clone test | about 6,500 tokens | the owner's notes |
+| D1 | `testing-strategy.md` | about 4,800 tokens | - |
+| M1 | Refresh the "Rough" results in `test-datasets.md` | about 5,900 tokens | - |
 
-### U1: Core additions the UI needs
+### F1: Fixes from the fresh-clone test
 
-**Goal.** Add the seven small helpers in `ui-design.md` section 5, with tests in a new `tests/test_ui_helpers.py`. Rewrite `format_schedules`, `format_no_schedules`, `format_overview` and the next-batch rule in `cli.py` to use them, without changing any output.
+**Goal.** The owner copies the project to an empty folder and follows only `README.md` and `docs/user-guide.md`. Fix whatever goes wrong: missing steps, wrong commands, unclear wording, a launcher fault.
 
 **Read:**
-- docs/project-brief.md (about 1,544)
-- docs/ui-design.md, section 5 only (about 335)
-- docs/api-summary.md (about 2,335)
-- src: io.py, only `read_text`, `format_schedules`, `_detect_delimiter`, `_resolve_columns` (about 1,352)
-- src: selection.py (whole) (about 2,140)
-- src: report.py, only `format_overview`, `format_no_schedules` (about 317)
-- src: cli.py, only `finder_main` and `_next_batch_command` (about 1,431)
+- docs/project-brief.md (about 1,978)
+- the owner's notes, pasted into the message: the step, what was expected, what happened
+- README.md (about 1,011)
+- docs/user-guide.md (about 3,269)
+- docs/environment.md (about 936)
+- run_app.bat (about 285)
 
-**Run (free).** The whole existing suite, before and after (the refactors must not change any output).
+**Run (free).** The whole suite. Repeat the README's setup steps in a fresh `.venv` in the sandbox to check the commands, with the limits that Linux is not Windows.
 
-**Files I deliver.** io.py, selection.py, report.py, cli.py, tests/test_ui_helpers.py, regenerated api-summary.md, design-decisions.md, development-roadmap.md
+**Files I deliver.** Whichever of README.md, docs/user-guide.md, docs/environment.md, run_app.bat and pyproject.toml needed a change; docs/design-decisions.md if a decision is made.
 
-**Done when.** All existing tests still pass unchanged, the new tests pass, ruff is clean.
-
-### U2: App skeleton and the "Your show" section
-
-**Goal.** Create `app.py` with the page frame, the performer upload, the column pickers, the warnings and "Clear all data"; `.streamlit/config.toml`; and `tests/test_app.py` using Streamlit's `AppTest` with inline CSV text.
-
-**Read:**
-- docs/project-brief.md (about 1,544)
-- docs/ui-design.md, whole (about 3,737)
-- docs/api-summary.md (about 2,335)
-
-**Run (free).** The whole suite, plus the new app tests (needs `streamlit`, which I install in my sandbox).
-
-**Files I deliver.** src/performance_scheduling/app.py, .streamlit/config.toml, tests/test_app.py, design-decisions.md, development-roadmap.md
-
-**Done when.** Upload, warnings, the column pickers and clearing work in `AppTest`.
-
-### U3: "Check a schedule" tab
-
-**Goal.** Add the checker tab to `app.py`: upload, gap, overview table, pairs table with performers affected, structural problems, downloads.
-
-**Read:**
-- docs/project-brief.md (about 1,544)
-- docs/ui-design.md, sections 2 and 4.4 to 4.6 (about 933)
-- docs/api-summary.md (about 2,335)
-- src: app.py as it stands (estimate) (about 3,000)
-
-**Run (free).** The whole suite plus the app tests.
-
-**Files I deliver.** app.py, tests/test_app.py, development-roadmap.md
-
-**Done when.** Every checker case in `ui-design.md` section 6 passes in `AppTest`.
-
-### U4: "Find schedules" tab
-
-**Goal.** Add the finder tab: settings, the pins form, pick, seed and shuffle, search, results table, downloads, "Show the next 5", "Try a gap of N", the no-schedule and stopped boxes, stale results.
-
-**Read:**
-- docs/project-brief.md (about 1,544)
-- docs/ui-design.md, sections 2 and 4.3 to 4.6 (about 1,490)
-- docs/api-summary.md (about 2,335)
-- src: app.py as it stands (estimate) (about 6,000)
-- docs/schedule-finder.md, "Choosing schedules" (about 399)
-
-**Run (free).** The whole suite plus the app tests.
-
-**Files I deliver.** app.py, tests/test_app.py, design-decisions.md, development-roadmap.md
-
-**Done when.** Every finder case in `ui-design.md` section 6 passes in `AppTest`.
-
-### U5: Launcher, packaging and the manual checklist
-
-**Goal.** Add `run_app.bat` (or a `schedule-app` command), a version range for `streamlit` in the `ui` extra, README text, and a short manual checklist for a real browser.
-
-**Read:**
-- docs/project-brief.md (about 1,544)
-- docs/ui-design.md, sections 7 to 9 (about 433)
-- pyproject.toml (about 258)
-- README.md (about 648)
-- docs/environment.md (about 594)
-
-**Run (free).** The whole suite; I check that the launcher command starts the page headless.
-
-**Files I deliver.** run_app.bat or launcher, pyproject.toml, README.md, environment.md
-
-**Done when.** You can double-click it, load the example file and find a schedule.
+**Done when.** A person who follows only the README and the guide goes from an empty folder to a downloaded schedule without help.
 
 ### D1: `testing-strategy.md`
 
-**Goal.** Write down how the project is tested: the brute-force checks, the example datasets with known answers, the fault-injection habit, the wording tests and the `AppTest` page tests.
+**Goal.** Write down how the project is tested: the brute-force checks, the example datasets with known answers, the fault-injection habit, the wording tests, the `AppTest` page tests, and the message-catalogue check (`scripts/list_messages.py` and `tests/test_error_messages.py`).
 
 **Read:**
-- docs/project-brief.md (about 1,544)
-- docs/test-datasets.md (about 1,326)
+- docs/project-brief.md (about 1,978), including "Habits that have paid off"
+- docs/test-datasets.md (about 1,325)
 - docs/search-approaches.md, sections 5 to 7 (about 727)
+- docs/ui-design.md, section 6 and section 11 (about 600)
 
-**Run (free).** `pytest --collect-only -q` (I generate the test inventory myself, so you do not have to paste it).
+**Run (free).** `pytest --collect-only -q` (the test inventory is generated, not pasted). Also `pytest -q --durations=5` for the slowest tests. The test files are `test_app`, `test_cli`, `test_conflicts`, `test_error_messages`, `test_io`, `test_models`, `test_report`, `test_selection`, `test_solver`, `test_ui_helpers` and `test_validator`; open one only if the inventory does not make its purpose clear.
 
-**Files I deliver.** docs/testing-strategy.md, development-roadmap.md
+**Files I deliver.** docs/testing-strategy.md, docs/development-roadmap.md, docs/project-brief.md (one line in "Where to find things"), docs/README.md (one line in the index).
 
 **Done when.** A new contributor could tell what each test file is for and how to add a test.
-
-### D2: `error-messages.md`
-
-**Goal.** A catalogue of every message the tools can show, grouped by situation, with what the organiser should do. I extract the messages from the code with a small script (`ast`), so I do not read the source files.
-
-**Read:**
-- docs/project-brief.md (about 1,544)
-- docs/api-summary.md (about 2,335)
-- the message list my script prints (estimate) (about 5,000)
-
-**Run (free).** A new script that lists every message string in the code (I write and run it; it goes in `scripts/`).
-
-**Files I deliver.** docs/error-messages.md, scripts/list_messages.py, development-roadmap.md
-
-**Done when.** Every message in the code appears once in the catalogue, and a test or the script fails if one is added without an entry.
-
-### D3: `data-privacy.md`
-
-**Goal.** Write the privacy rules: what is personal data here, where real files may live, what is never committed or logged, what the UI keeps, and what hosting would need.
-
-**Read:**
-- docs/project-brief.md (about 1,544)
-- docs/repo-structure.md, "Data folder policy" (about 43)
-- docs/ui-design.md, section 8 (about 160)
-- README.md, "Data and privacy" (about 54)
-- .gitignore (about 176)
-
-**Run (free).** Nothing to run.
-
-**Files I deliver.** docs/data-privacy.md, design-decisions.md
-
-**Done when.** Q16 is answered and the privacy rules cover that way of running the page.
-
-### D4: `user-guide.md`
-
-**Goal.** Plain-language guide for organisers: getting a CSV out of Excel, loading it, reading the warnings, finding and checking schedules, what the messages mean.
-
-**Read:**
-- docs/project-brief.md (about 1,544)
-- docs/ui-design.md, section 4 (about 1,953)
-- docs/schedule-checker.md, "Usage" and "Output" (about 927)
-- docs/schedule-finder.md, "Usage" and "Output" (about 1,089)
-- docs/input-data.md, sections 1 to 3 (about 1,723)
-
-**Run (free).** Nothing to run. Screenshots from you would help.
-
-**Files I deliver.** docs/user-guide.md, README.md
-
-**Done when.** Someone who has never seen the tool can follow it from a CSV to a downloaded schedule.
 
 ### M1: Refresh the "Rough" results in `test-datasets.md`
 
 **Goal.** Replace the quick-search results with answers from the finder, so each dataset states which gap and break combinations have schedules and which are proved impossible. The earlier quick search may share the backtracking fault found on 2026-10-17.
 
 **Read:**
-- docs/project-brief.md (about 1,544)
-- docs/test-datasets.md (about 1,326)
-- docs/api-summary.md (about 2,335)
+- docs/project-brief.md (about 1,978)
+- docs/test-datasets.md (about 1,325)
+- docs/api-summary.md (about 2,597)
 
-**Run (free).** A throwaway script over every dataset and a grid of gaps and breaks (I write and run it; it needs the repo and OR-Tools in my sandbox).
+**Run (free).** A throwaway script over every dataset in `data/examples/` and a grid of gaps and breaks (the chat writes and runs it; it needs the package and OR-Tools, so a `.venv` with `pip install -e ".[dev]"`). Report each result as "found" or "proved impossible" with the time the finder took. Do not commit the script unless it is worth keeping, and if it is, put it in `scripts/` and say so first.
 
-**Files I deliver.** docs/test-datasets.md
+**Files I deliver.** docs/test-datasets.md, docs/development-roadmap.md
 
-**Done when.** Every "Rough" row says "found" or "proved impossible" with the time the finder took.
+**Done when.** Every "Rough" row says "found" or "proved impossible" with the time the finder took, and the file says which machine the timings are from.
 
-### M2: Optional: a capped count ("at least 10,000")
+## 4. Context menu
 
-**Goal.** `schedule-finder.md` says the tool can show a count capped at a limit. It is not built. Decide whether the page wants it. If not, delete the sentence.
+Paths are inside the project folder. Approximate tokens, from 2026-10-31.
 
-**Read:**
-- docs/project-brief.md (about 1,544)
-- docs/schedule-finder.md, "Scale note" paragraph (estimate) (about 300)
-- docs/api-summary.md (about 2,335)
-- src: solver.py (about 5,476)
+| File | Approx. tokens |
+|---|---|
+| `docs/project-brief.md` | 1,978 |
+| `docs/README.md` (index) | 700 |
+| `docs/api-summary.md` | 2,597 |
+| `docs/design-decisions.md` (read one D-entry with `grep`, not the whole table) | 9,000 |
+| `docs/user-guide.md` | 3,269 |
+| `docs/error-messages.md` | 6,652 |
+| `docs/data-privacy.md` | 1,803 |
+| `docs/ui-design.md` | 4,070 |
+| `docs/schedule-finder.md` | 3,900 |
+| `docs/schedule-checker.md` | 1,694 |
+| `docs/search-approaches.md` | 2,545 |
+| `docs/input-data.md` | 1,795 |
+| `docs/data-model.md` | 1,496 |
+| `docs/repo-structure.md` | 1,372 |
+| `docs/test-datasets.md` | 1,325 |
+| `docs/problem-statement.md` | 828 |
+| `docs/development-roadmap.md` | 1,000 |
+| `docs/environment.md` | 936 |
+| `README.md` | 1,011 |
+| `src/performance_scheduling/io.py` | 7,791 |
+| `src/performance_scheduling/app.py` | 8,095 |
+| `src/performance_scheduling/solver.py` | 5,476 |
+| `src/performance_scheduling/cli.py` | 4,249 |
+| `src/performance_scheduling/models.py` | 2,863 |
+| `src/performance_scheduling/report.py` | 2,995 |
+| `src/performance_scheduling/selection.py` | 2,286 |
+| `src/performance_scheduling/validator.py` | 1,572 |
+| `src/performance_scheduling/conflicts.py` | 503 |
+| `scripts/list_messages.py` | 2,676 |
+| `scripts/make_api_summary.py` | 954 |
 
-**Run (free).** The whole suite.
-
-**Files I deliver.** solver.py, tests/test_solver.py, schedule-finder.md
-
-**Done when.** Either the sentence is gone or a capped count works and is tested.
-
-### M3: Optional: a 40-performance scale test
-
-**Goal.** See where the search slows down on a larger synthetic show (listed in `test-datasets.md` under "Ideas for later datasets").
-
-**Read:**
-- docs/project-brief.md (about 1,544)
-- docs/test-datasets.md, "Ideas for later datasets" (about 103)
-- docs/api-summary.md (about 2,335)
-
-**Run (free).** A generator for the synthetic show and timings of the finder (I write and run them).
-
-**Files I deliver.** docs/test-datasets.md, scripts/
-
-**Done when.** The notes say how large a show the finder handles inside the default time limit.
+For comparison, all tests are about 30,000 tokens and are never needed in the conversation, because they are run rather than read (the exception is a task that edits a test file, which says so). Check `docs/api-summary.md` before opening a source file.
 
 ## 5. Your own tasks (no chat needed)
 
-- Copy the files from each step into the repo, then run `pip install -e ".[dev]"`, `pytest` and `ruff check src tests`. Tell me if the results differ from what I reported (I test on Linux and Python 3.12; you are on Windows).
-- Commit the work so far. Add `.gitkeep` to any empty folder you want to keep (roadmap Phase 0).
-- Run `nbstripout` on `notebooks/search_experiment.ipynb` before committing it. The results are kept in `search-approaches.md`.
-- Run the finder on your real show and send me the output (it holds no real names): `schedule-finder --performers "data/private/2026 S2 performer data-anonymous.csv" --gap 2 --pick 1-5`, and again with `--gap 3 --breaks 2`.
-- Add the new docs to the index in `docs/README.md` (I have not seen that file): `project-brief.md`, `task-plan.md`, `api-summary.md`, `ui-design.md`.
-- Put `scripts/make_api_summary.py` in a `scripts/` folder, and add one line for it to `docs/repo-structure.md` if you want it listed. (Done: D61.)
+- After each step, copy the new files into the project and run `pip install -e ".[dev]"`, `pytest`, `ruff check src tests scripts` and `python scripts/list_messages.py --check`. Tell the chat if the results differ from what it reported.
+- Replace `docs/README.md` with the index in this handover, if yours is still a copy of the root README (the one the previous chat saw was).
+- Commit the work. Check `git status` shows nothing from `data/private/` (`data-privacy.md` section 8).
+- Before zipping for a new chat, leave out `.venv/`, `data/private/`, `output/`, `__pycache__/` and `*.egg-info/`.
+- When the guide is shown to a first organiser, write down every place they hesitate and send the notes to a chat as F1 input.
+- Optional: run the finder on your real show and keep the output for yourself (it holds no real names): `schedule-finder --performers "data/private/<your file>.csv" --gap 2 --pick 1-5`, and again with `--gap 3 --breaks 2`.
 
 ## 6. Decisions waiting for you
 
-| ID | Question | My recommendation |
+| ID | Question | Recommendation |
 |---|---|---|
-| Q16 | Who runs the UI, and where? | (a) Only you, on your own computer, for now |
-| Q17 | How are pins entered in the UI? | A guided "Add a pin" form |
-| M2 | Build a capped count, or delete the sentence? | Decide after U4; delete it if the page does not need it |
-| Dates | Change D29 to D41 from 2026-10-17 to 2026-10-19? | Only if the 17th is wrong; I do not know when you ran them |
+| Dates | D29 to D41 in `design-decisions.md` are dated 2026-10-17. Change them to 2026-10-19? | Only if the 17th is wrong; the previous chat did not know when the owner ran them |
+
+Everything else is answered: Q12, Q16 and Q17 (D58, D53, D54), and M2 and M3 are dropped (D63).

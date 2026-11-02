@@ -48,13 +48,19 @@ To practise first, the page has an **Example file (download)** link under the up
 
 ## 2. Start the page
 
+The first time on a computer, the page needs a one-time setup (installing Python and the packages). It is in the [README](../README.md), under **Setup**. You do it once.
+
+**On Windows**
+
 1. Open the project folder and double-click **`run_app.bat`**.
 2. A black window opens, then your web browser opens the page a few seconds later. If it does not, type `http://localhost:8501` into your browser's address bar.
 3. **Keep the black window open** while you work. It is the page running on your computer.
 
+**On a Mac**, open Terminal in the project folder and run the start command shown in the README under **Start the page**. The rest is the same: the browser opens, and you keep the Terminal window open while you work.
+
 The page runs only on your computer. Your file is not sent anywhere.
 
-If the black window says the page is not set up yet, or is missing something, ask whoever set it up for you. It will say what to do.
+If the black window says the page is not set up yet, or is missing something, follow **Setup** in the README. It says what to do.
 
 ![The page just after it opens: the title, "1. Your show", an upload box and an example file button.](images/page-opened.png)
 
@@ -174,7 +180,8 @@ With more than 10 schedules, the valid ones appear only in the Overview table, t
 | **No schedule was found before the time limit** | Press **Search for longer**. |
 | *The schedule finder is not installed on this computer* | Ask whoever set the page up. |
 | *Something unexpected went wrong …* | Close the black window, start again, and try once more. If it happens again, tell whoever set the page up what you were doing. Do not send them your real file. |
-| The page will not open at all | Check the black window is still open. Close it and double-click `run_app.bat` again. |
+| The black window says the page is **not set up** or is **missing something** | Follow **Setup** in the [README](../README.md) (install Python, then the packages). It is a one-time step. |
+| The page will not open at all | Check the black window (or Terminal on a Mac) is still open. Close it and start the page again. |
 
 Every message the page can show is explained in [error-messages.md](error-messages.md).
 

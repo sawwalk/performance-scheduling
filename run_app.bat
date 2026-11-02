@@ -8,7 +8,10 @@ title Performance scheduling
 
 if not exist ".venv\Scripts\python.exe" (
     echo The page is not set up on this computer yet.
-    echo Ask whoever set it up to follow "Setup" in README.md, then try again.
+    echo.
+    echo This is a one-time step. Open README.md in this folder and follow "Setup"
+    echo ^(it starts with installing Python from https://www.python.org/downloads/^).
+    echo Then double-click run_app.bat again.
     echo.
     pause
     exit /b 1
@@ -17,7 +20,7 @@ if not exist ".venv\Scripts\python.exe" (
 ".venv\Scripts\python.exe" -c "import streamlit, ortools, performance_scheduling" >nul 2>&1
 if errorlevel 1 (
     echo The page is missing something it needs.
-    echo Ask whoever set it up to run this command in this folder:
+    echo Setup may not have finished. Run this command in this folder ^(see "Setup" in README.md^):
     echo.
     echo     .venv\Scripts\python -m pip install -e ".[ui]"
     echo.

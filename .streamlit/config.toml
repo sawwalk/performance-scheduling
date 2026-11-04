@@ -16,5 +16,7 @@ toolbarMode = "minimal"
 # Only this computer can open the page (Q16, answer (a)). To let others on the network
 # use it, or to host it, that is a separate decision and needs data-privacy.md first.
 address = "localhost"
+# Do not ask for an email address the first time the page starts on a computer (D65).
+showEmailPrompt = false
 # Megabytes. The performer file is small; this keeps a wrong file from being swallowed.
 maxUploadSize = 5

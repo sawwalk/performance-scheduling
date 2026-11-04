@@ -35,7 +35,7 @@ Then open a **new** command window (step 3) and check the version:
 
 | Windows (Command Prompt) | Mac (Terminal) |
 |---|---|
-| `py --version` | `python3 --version` |
+| `python --version` | `python3 --version` |
 
 You should see `Python 3.11` or higher. If you see an older number or an error, see "If something goes wrong".
 
@@ -50,7 +50,7 @@ This downloads what the page needs (Streamlit and OR-Tools, and the packages the
 
 **Windows**
 
-    py -m venv .venv
+    python -m venv .venv
     .venv\Scripts\python -m pip install -e ".[ui]"
 
 **Mac**
@@ -74,6 +74,8 @@ If Windows says **Windows protected your PC**, choose **More info**, then **Run 
 
 Your browser opens the page a few seconds later. Run this from the project folder, because the page's settings are read from there.
 
+The first time the page starts on a computer, a line asking for an **Email** may appear in the window. You do not need to give one: press **Enter** to skip it, and the page starts.
+
 If the browser does not open, type `http://localhost:8501` into its address bar. **Keep the black window (or Terminal) open while you work.** To stop the page, close the window (on a Mac press Control and C first, then close Terminal). Closing the browser tab does not stop it.
 
 Next: the [user guide](docs/user-guide.md) takes you from a spreadsheet to a downloaded schedule.
@@ -82,7 +84,7 @@ Next: the [user guide](docs/user-guide.md) takes you from a spreadsheet to a dow
 
 | What you see | What to do |
 |---|---|
-| `'py' is not recognized` (Windows) | Python is not installed, or the installer's PATH box was not ticked. Run the Python installer again, choose **Modify** or **Uninstall** and reinstall with the box ticked. Then open a new Command Prompt. You can also try `python` instead of `py`. |
+| `'python' is not recognized` (Windows), or the Microsoft Store opens | Python is not installed, or the installer's PATH box was not ticked. Install Python from python.org (step 2) with **Add python.exe to PATH** ticked, then open a new Command Prompt. If `py --version` works but `python --version` does not, use `py` instead of `python` in the commands in step 4. |
 | `python3 --version` shows 3.9 or lower (Mac), or a window offers to install "command line developer tools" | Install Python from python.org (step 2). Close Terminal, open a new one, and check again. |
 | The version is lower than 3.11 | Install a newer Python from python.org (step 2). Older Pythons are not supported. |
 | Step 4 ends with a red error or `Could not find a version`, `Connection`, or `timed out` | Check your internet connection and run the line again. On a work or school network, a firewall may block downloads. Ask your IT help. |

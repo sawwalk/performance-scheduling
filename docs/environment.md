@@ -15,7 +15,7 @@ On a Mac, the Python that ships with macOS is 3.9, which is too old: install fro
 
 Creating the environment (one time). The README gives the user-facing steps:
 
-    py -m venv .venv          (Windows; `python -m venv .venv` also works)
+    python -m venv .venv      (Windows; `py -m venv .venv` also works where the `py` launcher is installed)
     python3 -m venv .venv     (macOS/Linux)
 
 Then activate it (Windows: `.venv\Scripts\activate`; macOS/Linux: `source .venv/bin/activate`).
@@ -57,7 +57,7 @@ The test suite runs the second check as well (`tests/test_error_messages.py`).
 
 On Windows, double-click `run_app.bat` in the project folder. It uses `.venv\Scripts\python.exe`, changes to the project folder first (so `.streamlit/config.toml` is found, D53), checks that Streamlit, OR-Tools and the package import, and then runs `python -m streamlit run src\performance_scheduling\app.py`. If `.venv` is missing or a package is missing, it says so in plain words and waits for a key press. On a Mac (or Linux) there is no launcher (D64). Open Terminal in the project folder and run `.venv/bin/python -m streamlit run src/performance_scheduling/app.py` (or the same `streamlit run` command with the `.venv` active). It must be run from the project folder so that `.streamlit/config.toml` is found. The launcher's messages point to the README's Setup section, which has the one-time steps for both systems; the launcher does not install anything itself.
 
-Streamlit's first-run email prompt does not appear, because usage statistics are off in `config.toml` (checked on Linux with a fresh home folder; not yet checked on Windows or macOS).
+Streamlit's first-run email prompt is switched off with `showEmailPrompt = false` in `config.toml` (D65). Turning usage statistics off (D49) does not stop it. It is skipped automatically when Streamlit runs headless, which is the default on a Linux machine with no display, so a test there must force `--server.headless false` with a fresh home folder to see it. Checked that way on Linux (prompt with the old config, none with the new). Not yet checked on Windows or macOS. If a prompt ever appears, pressing Enter skips it.
 
 ## VS Code
 

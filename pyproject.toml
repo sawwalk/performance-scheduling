@@ -7,7 +7,7 @@ name = "performance-scheduling"
 version = "0.1.0"
 description = "Check and find running orders for a dance show so performers get enough rest between performances."
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.11,<3.15"
 dependencies = []          # the core uses only the Python standard library
 
 [project.optional-dependencies]

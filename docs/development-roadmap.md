@@ -57,4 +57,4 @@ Each step ends with tests passing and a commit.
 - [x] `error-messages.md`, `list_messages.py` and `tests/test_error_messages.py` (task D2, D60)
 - [x] M2 and M3 dropped (D63); handover written as `docs/task-plan.md` section 0
 - [x] `user-guide.md`, and a link to it from the README (task D4, D62). Four screenshots added from the running page
-- [x] F1 (part): root `README.md` with setup for Windows and macOS, launcher messages point to it, guide and `environment.md` updated (D64). Second-computer Windows test done (D65: `python` instead of `py`, email prompt switched off). Still to do: a fresh-Python test on Windows, a Mac test, then a video tutorial
+- [x] F1 (part): root `README.md` with setup for Windows and macOS, launcher messages point to it, guide and `environment.md` updated (D64). Second-computer Windows test done (D65: `python` instead of `py`, email prompt switched off). Clean-account Windows test found Python 3.15 breaks OR-Tools (D66). Still to do: re-run that test with Python 3.13, a Mac test, then a video tutorial

@@ -10,7 +10,7 @@ Python 3.11 or newer, in a virtual environment named `.venv` at the repo root
 Python is the only program to install. Streamlit needs 3.11 or newer. OR-Tools 9.15 publishes
 ready-made packages (wheels) for Python 3.9 to 3.14 on Windows, macOS (Intel and Apple silicon)
 and Linux, so no compiler is needed. The suite was run on 3.12 (Linux; the first 604 tests also
-on the owner's Windows machine). Recommend **3.11 to 3.13** to users; 3.14 has not been tried.
+on the owner's Windows machine). Recommend **3.12 or 3.13** to users. 3.14 has not been tried here. **3.15 does not work**: OR-Tools 9.15.6755 (the newest release on 2026-11-04) has no Python 3.15 wheels, so `pip install` fails with `No matching distribution found for ortools` (found on a clean Windows account with Python 3.15.2, which python.org's front-page button offered). `pyproject.toml` therefore sets `requires-python = ">=3.11,<3.15"` (D66). Raise the cap when OR-Tools ships 3.15 wheels and the suite passes on it.
 On a Mac, the Python that ships with macOS is 3.9, which is too old: install from python.org.
 
 Creating the environment (one time). The README gives the user-facing steps:

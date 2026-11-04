@@ -26,7 +26,11 @@ Keep the extracted folder somewhere you can find it, such as Documents. If you l
 
 ### 2. Install Python
 
-Download Python from <https://www.python.org/downloads/> and run the installer. Any version from **3.11 to 3.13** works. It is free and does not need any other program.
+Use **Python 3.12 or 3.13**. Do not use the newest version. The big yellow button on the python.org front page always offers the newest Python, and this project cannot use it yet: one of its packages (OR-Tools) is not available for Python 3.15, and a Python that new fails at step 4 with `No matching distribution found for ortools`.
+
+1. Go to <https://www.python.org/downloads/windows/> (Windows) or <https://www.python.org/downloads/macos/> (Mac).
+2. Find the newest **Python 3.13.x** in the list and download its installer (Windows: *Windows installer (64-bit)*; Mac: *macOS 64-bit universal2 installer*).
+3. Run the installer. It is free and does not need any other program.
 
 - **Windows:** on the first installer screen, tick **Add python.exe to PATH**, then choose **Install Now**.
 - **Mac:** use the installer from python.org. Do not rely on the Python that comes with a Mac. It is usually too old (3.9).
@@ -37,7 +41,7 @@ Then open a **new** command window (step 3) and check the version:
 |---|---|
 | `python --version` | `python3 --version` |
 
-You should see `Python 3.11` or higher. If you see an older number or an error, see "If something goes wrong".
+You should see `Python 3.12.x` or `3.13.x` (3.11 also works). If you see another number, or an error, see "If something goes wrong".
 
 ### 3. Open a command window in the project folder
 
@@ -86,7 +90,8 @@ Next: the [user guide](docs/user-guide.md) takes you from a spreadsheet to a dow
 |---|---|
 | `'python' is not recognized` (Windows), or the Microsoft Store opens | Python is not installed, or the installer's PATH box was not ticked. Install Python from python.org (step 2) with **Add python.exe to PATH** ticked, then open a new Command Prompt. If `py --version` works but `python --version` does not, use `py` instead of `python` in the commands in step 4. |
 | `python3 --version` shows 3.9 or lower (Mac), or a window offers to install "command line developer tools" | Install Python from python.org (step 2). Close Terminal, open a new one, and check again. |
-| The version is lower than 3.11 | Install a newer Python from python.org (step 2). Older Pythons are not supported. |
+| The version is lower than 3.11 | Install Python 3.13 from python.org (step 2). Older Pythons are not supported. |
+| The version is 3.14 or higher (for example 3.15), or step 4 ends with `No matching distribution found for ortools` | Your Python is too new. Uninstall it (Windows: **Settings, Apps**), install Python 3.13 (step 2), open a new window and check `python --version` shows 3.13. Then delete the `.venv` folder and repeat step 4. |
 | Step 4 ends with a red error or `Could not find a version`, `Connection`, or `timed out` | Check your internet connection and run the line again. On a work or school network, a firewall may block downloads. Ask your IT help. |
 | `run_app.bat` says the page is **not set up** | Do step 4 in this folder. Check the folder `.venv` exists inside it. |
 | `run_app.bat` says the page is **missing something** | Run the command it shows, in this folder. |

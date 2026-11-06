@@ -7,11 +7,11 @@ Tools for ordering the performances in a dance show so that nobody has to perfor
 
 You use both from a page in your web browser. The page runs only on your own computer, and your performer file is not sent anywhere.
 
-<!-- Video tutorial: add the link here when it exists, for example "Watch the 5-minute overview: <link>". -->
-
 **New here?** Do the one-time setup below, start the page, then follow the [user guide](docs/user-guide.md).
 
 ## Setup (one time)
+
+If you use Windows you can watch the [setup video](docs/video_tutorials/one-time-setup-windows.mp4) or play directly from performance-scheduling-main/docs/video_tutorials/one-time-setup-windows.mp4. The written steps below are the full reference, and the only guide for a Mac.
 
 You need a computer running Windows or macOS, an internet connection for the setup, and a web browser. Python is the only program you have to install. Everything else is downloaded for you in step 4. Allow about 10 minutes.
 

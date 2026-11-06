@@ -9,7 +9,7 @@ A show has many performances, and many performers are in more than one performan
 - **Find schedules:** it works out running orders for you.
 - **Check a schedule:** you give it a running order you made yourself, and it tells you who would not get enough rest.
 
-### Words used
+### Definitions
 
 | Word | Meaning |
 |---|---|
@@ -21,7 +21,7 @@ A show has many performances, and many performers are in more than one performan
 
 ## 1. Prepare your performer file
 
-The page needs one file: a list of who is in what. Make it in Excel (or Google Sheets) with **one row for each performer in each performance**, and two columns:
+The page needs one file: a list of who is in what. Make it in Excel (or Google Sheets) with **one row for each performer in each performance**, and these two columns:
 
 | full name | performance |
 |---|---|

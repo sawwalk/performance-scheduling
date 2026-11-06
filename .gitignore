@@ -40,3 +40,6 @@ data/*
 output/
 outputs/
 *.log
+
+# ---------- Working files for the video tutorials (only the finished videos in docs/video_tutorials/ are kept) ----------
+/vids/

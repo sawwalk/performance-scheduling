@@ -114,3 +114,7 @@ To run the tests, install the developer extras instead of `.[ui]`, then run `pyt
 
     .venv\Scripts\python -m pip install -e ".[dev]"      (Windows)
     .venv/bin/python -m pip install -e ".[dev]"          (Mac)
+
+
+## AI Diligence Statement
+This project was created with the help of Claud AI which was used for designing the projects structure, requiremnts gathering, writing code, debugging and create documentation. I affirm that all AI generated content and it's outputs have been reviewed by a human and reflect my intention and I take full responsibility for the work done by AI. This statement is to acknowledge the contribution of AI in this project.
